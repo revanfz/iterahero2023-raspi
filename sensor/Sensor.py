@@ -1,6 +1,6 @@
 import time
 import glob
-import datetime
+import asyncio
 import Adafruit_MCP3008
 
 CLK = 21
@@ -32,41 +32,58 @@ class SensorADC(Sensor):
         super().info()
         print(f"CHANNEL: {self.__channel}\n")
 
-    def read_value(self):
+    async def read_value(self):
         count = 0
-        print(f"Nilai sensor {self.name}")
+        val_min = 0
+        val_max = 0
+        total = 0
         while count < self.timeout:
+            raw = 0
             # Baca nilai channel MCP
             values = mcp.read_adc(self.__channel)
             if self.__tipe == "ec":
+                # ec = round((values - 13.663) / 0.043, 3) - 60  # Persamaan 1000
                 ec = round((values - 13.663) / 0.043, 3) - 60  # Persamaan 1000
-                ppm = int(ec / 1000 * 500)
+                raw = int(ec / 1000 * 500)
 
                 print(f"EC larutan: { ec } µs/cm")
-                print(f"EC larutan: { round(ec / 1000, 3) } ms/cm")
-                print(f"PPM : { ppm } ppm", end='\n')
+                # print(f"EC larutan: { round(ec / 1000, 3) } ms/cm")
+                print(f"PPM : { raw } ppm", end='\n')
             elif self.__tipe == 'ph':
-                ph = round((values - 858.77) / -54.465, 2)
+                # ph = round((values - 858.77) / -54.465, 2)
+                raw = round((values - 858.77) / -54.465, 2)
 
-                print(f"Time: {datetime.datetime.now()} \t pH larutan: { ph }")
+                print(f"pH larutan: { raw }")
+            if count == 1:
+                val_min = raw
+                val_max = raw
+            else:
+                if raw < val_min:
+                    val_min = raw
+                elif raw > val_max:
+                    val_max = raw
             count += 1
-            time.sleep(1)
+            total += raw
+            await asyncio.sleep(1)
         print()
+        return total / self.timeout
 
 
 class SensorSuhu(Sensor):
     def __init__(self, name, persamaan) -> None:
         super().__init__(name, persamaan)
+        self.path = ''
 
         base_dir = '/sys/bus/w1/devices/'
 
-        try:
-            device_folder = glob.glob(base_dir + '28*')[0]
-            self.path = device_folder + '/w1_slave'
-        except IndexError:
-            self.path = ''
-            print("File tidak ditemukan")
-            return
+        while self.path == '':
+            try:
+                device_folder = glob.glob(base_dir + '28*')[0]
+                self.path = device_folder + '/w1_slave'
+            except IndexError:
+                print(f"{self.name} tidak terhubung ke raspi")
+                return
+                # time.sleep(2)
 
     def info(self):
         super().info()
@@ -82,11 +99,11 @@ class SensorSuhu(Sensor):
             raise FileExistsError(
                 "Sensor tidak ditemukan. Harap periksa koneksi sensor ke Raspi")
 
-    def read_temp(self):
+    async def read_temp(self):
         if self.path:
             lines = self.read_temp_raw()
             while lines[0].strip()[-3:] != 'YES':
-                time.sleep(0.2)
+                await asyncio.sleep(0.2)
                 lines = self.read_temp_raw()
             equals_pos = lines[1].find('t=')
             if equals_pos != -1:
@@ -98,14 +115,14 @@ class SensorSuhu(Sensor):
             raise FileExistsError(
                 "Sensor tidak ditemukan. Harap periksa koneksi sensor ke Raspi")
 
-    def read_value(self):
+    async def read_value(self):
         if self.path != '':
             count = 0
             while count < self.timeout:
                 count += 1
                 suhu = self.read_temp()[0]
                 print(round(suhu, 2))
-                time.sleep(0.5)
+                await asyncio.sleep(0.5)
             print()
         else:
             raise FileExistsError(
