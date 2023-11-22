@@ -16,7 +16,7 @@ class Sensor:
     def __init__(self, name, persamaan) -> None:
         self.name = name
         self.persamaan = persamaan
-        self.timeout = 5
+        self.timeout = 4
 
     def info(self):
         print(f"Nama: {self.name}")

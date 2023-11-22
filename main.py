@@ -92,15 +92,15 @@ async def actuatorState(channel, pin):
 
 
 def countPulse(channel, volume, relay_aktuator, pin_sensor, cairan):
-    # actuator_state = GPIO.input(relay_aktuator)
-    # if actuator_state:
-    debit[cairan] += 1
-    print(f"Volume air yang keluar: {debit[cairan] / 430} L")
-    if debit[cairan] / 378 >= volume:
-        # GPIO.output(relay_aktuator, GPIO.LOW)
-        GPIO.remove_event_detect(pin_sensor)
-        debit[cairan] = 0
-        peracikan_state[cairan + 'Enough'] = True
+    actuator_state = GPIO.input(relay_aktuator)
+    if actuator_state:
+        debit[cairan] += 1
+        print(f"Volume {cairan} yang keluar: {debit[cairan] / 216} L")
+        if debit[cairan] / 216 >= volume:
+            GPIO.output(relay_aktuator, GPIO.LOW)
+            GPIO.remove_event_detect(pin_sensor)
+            debit[cairan] = 0
+            peracikan_state[cairan + 'Enough'] = True
 
 
 def kontrol_peracikan():
@@ -149,7 +149,7 @@ async def turn_off_peracikan():
 
 async def test_waterflow():
     GPIO.add_event_detect(sensor["WATERFLOW_AIR"], GPIO.FALLING, callback=lambda channel: countPulse(
-        channel, 0.2, actuator["RELAY_AIR"], sensor["WATERFLOW_AIR"], 'air'))
+        channel, 0.7, actuator["RELAY_AIR"], sensor["WATERFLOW_AIR"], 'air'))
     GPIO.output(actuator["RELAY_AIR"], GPIO.HIGH)
 
 async def waterflow_manual():
@@ -168,6 +168,7 @@ async def peracikan(pH, ppm, volume_air, volume_a, volume_b, durasi=None, pin_se
     GPIO.output(actuator["RELAY_AIR"], GPIO.HIGH)
     GPIO.output(actuator["RELAY_A"], GPIO.HIGH)
     GPIO.output(actuator["RELAY_B"], GPIO.HIGH)
+    GPIO.output(actuator["MOTOR_NUTRISI"], GPIO.HIGH)
 
     relay_state = [{str(actuator["RELAY_AIR"]): bool(GPIO.input(actuator["RELAY_AIR"]))}, {str(actuator["RELAY_A"]): bool(GPIO.input(
         actuator["RELAY_A"]))}, {str(actuator["RELAY_B"]): bool(GPIO.input(actuator["RELAY_B"]))}]
@@ -181,15 +182,15 @@ async def peracikan(pH, ppm, volume_air, volume_a, volume_b, durasi=None, pin_se
     GPIO.output(actuator["RELAY_AIR"], GPIO.LOW)
     GPIO.output(actuator["RELAY_A"], GPIO.LOW)
     GPIO.output(actuator["RELAY_B"], GPIO.LOW)
+    GPIO.output(actuator["MOTOR_NUTRISI"], GPIO.LOW)
 
     #  temp_value
-    ppm_value, ph_value = await asyncio.gather(
+    ppm_value, ph_value, temp_value = await asyncio.gather(
         EC_sensor.read_value(),
         pH_sensor.read_value(),
-        # temp_sensor.read_value()
+        temp_sensor.read_value()
     )
-    print(f"\npH Larutan: {ph_value}\nPPM Larutan: {ppm_value}\n")
-    # print(f"\npH Larutan: {ph_value}\nPPM Larutan: {ppm_value}\nSuhu Larutan: {temp_value}\n")
+    print(f"\npH Larutan: {ph_value}\nPPM Larutan: {ppm_value}\nSuhu Larutan: {temp_value}\n")
 
     # # VALIDASI PH
     # if 6.0 <= ph_value <= 7.0:
@@ -245,8 +246,17 @@ async def peracikan(pH, ppm, volume_air, volume_a, volume_b, durasi=None, pin_se
 
 async def publish_sensor(client):
     while True:
+        ppm_value, ph_value, temp_value = await asyncio.gather(
+        EC_sensor.read_value(),
+        pH_sensor.read_value(),
+        temp_sensor.read_value()
+    )
+        ph_value = ph_value if ph_value > 0 else 0
+        ppm_value = ppm_value if ppm_value > 0 else 0
+        temp_value = temp_value if temp_value > 0 else 0
+
         await client.publish("iterahero2023/info", json.dumps({"sensor_adc": [
-            {str(sensor_adc[0]): round(uniform(6.2, 7.0), 2)}, {sensor_adc[1]: randint(1200, 1500)}], "sensor_non_adc": [{str(sensor_non_adc[0]): round(uniform(295.5, 315.5), 2)}]}))
+            {str(sensor_adc[0]): round(ph_value, 2) }, {sensor_adc[1]: ppm_value}], "sensor_non_adc": [{str(sensor_non_adc[0]): round(temp_value, 2)}]}))
         await asyncio.sleep(2.5)
 
 
@@ -279,7 +289,7 @@ async def main():
                 if message.topic.matches("iterahero2023/waterflow"):
                     data = json.loads(message.payload)
                     print(data)
-                    asyncio.create_task(waterflow_manual())
+                    asyncio.create_task(test_waterflow())
                 if message.topic.matches("iterahero2023/peracikan"):
                     x = check_peracikan()
                     if x:
