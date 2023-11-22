@@ -69,10 +69,10 @@ class SensorADC(Sensor):
 
 
 class SensorSuhu(Sensor):
-    def __init__(self, name, persamaan) -> None:
+    def __init__(self, name, persamaan, gpio) -> None:
         super().__init__(name, persamaan)
         self.path = ''
-
+        self.GPIO = gpio
  
         os.system('modprobe w1-gpio')
         os.system('modprobe w1-therm')
