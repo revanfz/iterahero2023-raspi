@@ -1,4 +1,5 @@
 import os
+import datetime
 from random import randint, uniform
 import ssl
 import sys
@@ -17,8 +18,8 @@ with open(os.path.dirname(__file__) + '/config.json') as config_file:
 
 actuator = {
     "RELAY_AIR": 5,
-    "RELAY_A": 2,
-    "RELAY_B": 17,
+    "RELAY_A": 17,
+    "RELAY_B": 2,
     "RELAY_ASAM": 20,
     "RELAY_BASA": 22,
     "RELAY_DISTRIBUSI": 6,
@@ -27,8 +28,8 @@ actuator = {
 }
 
 sensor = {
-    "WATERFLOW_A": 26,
-    "WATERFLOW_B": 13,
+    "WATERFLOW_A": 13,
+    "WATERFLOW_B": 26,
     "WATERFLOW_ASAM_BASA": 18,
     "WATERFLOW_AIR": 24
 }
@@ -79,6 +80,7 @@ for actuator_name, actuator_pin in actuator.items():
 for sensor_name, sensor_pin in sensor.items():
     GPIO.setup(sensor_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
+
 async def test_baca():
     x, y = await asyncio.gather(
         pH_sensor.read_value(),
@@ -95,8 +97,7 @@ def countPulse(channel, volume, relay_aktuator, pin_sensor, cairan):
     actuator_state = GPIO.input(relay_aktuator)
     if actuator_state:
         debit[cairan] += 1
-        print(f"Volume {cairan} yang keluar: {debit[cairan] / 216} L")
-        if debit[cairan] / 216 >= volume:
+        if debit[cairan] / 378 >= volume:
             GPIO.output(relay_aktuator, GPIO.LOW)
             GPIO.remove_event_detect(pin_sensor)
             debit[cairan] = 0
@@ -116,15 +117,17 @@ def check_peracikan():
     return air and a and b
 
 
-async def penyiraman(pin_selenoid, durasi):
-    GPIO.output(pin_selenoid, GPIO.HIGH)
+async def penyiraman(selenoid, durasi):
+    for item in selenoid:
+        GPIO.output(item['GPIO'], GPIO.HIGH)
     try:
-        await asyncio.sleep(2)
-        # await asyncio.sleep(durasi)
+        await asyncio.sleep(durasi * 60)
     except (KeyboardInterrupt, asyncio.CancelledError) as e:
         print(f"{e}")
     finally:
-        GPIO.output(pin_selenoid, GPIO.LOW)
+        print("Penyiraman Selesai")
+        for item in selenoid:
+            GPIO.output(item['GPIO'], GPIO.LOW)
 
 
 def checkVAR(item):
@@ -140,23 +143,59 @@ async def turn_off_peracikan():
     for actuator_name, actuator_pin in actuator.items():
         GPIO.output(actuator_pin, GPIO.LOW)
 
-    relay_state = [{actuator["MOTOR_MIXING"]: bool(GPIO.input(actuator["MOTOR_MIXING"]))}, {str(actuator["RELAY_AIR"]): bool(GPIO.input(actuator["RELAY_AIR"]))}, {str(actuator["RELAY_A"]): bool(GPIO.input(
-        actuator["RELAY_A"]))}, {str(actuator["RELAY_B"]): bool(GPIO.input(actuator["RELAY_B"]))}]
-    await client.publish("iterahero2023/peracikan/info", json.dumps({"status": "Ada Isinya"}), qos=1)
+    relay_state = [{str(actuator["MOTOR_MIXING"]): bool(GPIO.input(actuator["MOTOR_MIXING"]))},
+                   {str(actuator["RELAY_AIR"]): bool(
+                       GPIO.input(actuator["RELAY_AIR"]))},
+                   {str(actuator["RELAY_A"]): bool(
+                       GPIO.input(actuator["RELAY_A"]))},
+                   {str(actuator["RELAY_B"]): bool(GPIO.input(actuator["RELAY_B"]))}]
     await client.publish("iterahero2023/actuator", json.dumps({"actuator": relay_state}), qos=1)
-    print("Peracikan Selesai" if peracikan_state["airEnough"] else "Peracikan Dihentikan")
+    await client.publish("iterahero2023/peracikan/info", json.dumps({"status": "Ada Isinya"}), qos=1)
+
+    print(
+        "Peracikan Selesai" if peracikan_state["airEnough"] else "Peracikan Dihentikan")
 
 
-async def test_waterflow():
-    GPIO.add_event_detect(sensor["WATERFLOW_AIR"], GPIO.FALLING, callback=lambda channel: countPulse(
-        channel, 0.7, actuator["RELAY_AIR"], sensor["WATERFLOW_AIR"], 'air'))
-    GPIO.output(actuator["RELAY_AIR"], GPIO.HIGH)
+async def test_waterflow(volume):
+    GPIO.add_event_detect(sensor["WATERFLOW_A"], GPIO.FALLING, callback=lambda channel: countPulse(
+        channel, volume, actuator["RELAY_A"], sensor["WATERFLOW_A"], 'nutrisiA'))
+    GPIO.output(actuator["RELAY_A"], GPIO.HIGH)
 
-async def waterflow_manual():
-    GPIO.add_event_detect(sensor["WATERFLOW_AIR"], GPIO.FALLING, callback=lambda channel: countPulse(
-        channel, 200, actuator["RELAY_AIR"], sensor["WATERFLOW_AIR"], 'air'))
+async def validasi_pH(target_ppm, actual_ppm, konstanta):
+    if target_ppm - 200 <= actual_ppm <= target_ppm + 200:
+        print("PPM Aman")
+    else:
+        # ada yang ditambahin air / nutrisi
+        if actual_ppm < target_ppm - 200:
+            nutrisi_tambahan = ((target_ppm * konstanta['rasioA'] / konstanta['ppm']) - (actual_ppm * konstanta['rasioA'] / konstanta['ppm'])) / 1000
+            GPIO.add_event_detect(sensor["WATERFLOW_A"], GPIO.FALLING, callback=lambda channel: countPulse(
+                channel, nutrisi_tambahan, actuator["RELAY_A"], sensor["WATERFLOW_A"], 'nutrisiA'))
+            GPIO.add_event_detect(sensor["WATERFLOW_B"], GPIO.FALLING, callback=lambda channel: countPulse(
+                channel, nutrisi_tambahan, actuator["RELAY_B"], sensor["WATERFLOW_B"], 'nutrisiB'))
+            print("Tambahin nutrisi")
+            # 1mL : 1mL : 1L -> PPM nya naik 270
+            # berarti vol_estimated = 1mL * volume naik ppmnya 270
+            # ppm tambahan target / 270 * vol_estimated
+            # peracikan_state["nutrisiAEnough"] = False
+            # peracikan_state["nutrisiBEnough"] = False
+            # vol_nutrisi = ppm-ppm_value / 270 * (volume / 1000)
+            # GPIO.add_event_detect(sensor["WATERFLOW_A"], GPIO.FALLING, callback=lambda channel: countPulse(
+            #     channel, vol_nutrisi, actuator["RELAY_A"], sensor["WATERFLOW_A"], 'nutrisiA'))
+            # GPIO.add_event_detect(sensor["WATERFLOW_B"], GPIO.FALLING, callback=lambda channel: countPulse(
+            #     channel, vol_nutrisi, actuator["RELAY_B"], sensor["WATERFLOW_B"], 'nutrisiB'))
+            while not(peracikan_state['nutrisiAEnough']) or not(peracikan_state['nutrisiBEnough']):
+                await asyncio.sleep(0.2)
+        else:
+            # Ngitung air yang mau ditambahin 
+            air_tambahan = ((target_ppm * konstanta['rasioAir'] / konstanta['ppm']) - (actual_ppm * konstanta['rasioAir'] / konstanta['ppm'])) / 1000
+            GPIO.add_event_detect(sensor["WATERFLOW_AIR"], GPIO.FALLING, callback=lambda channel: countPulse(
+                channel, air_tambahan, actuator["RELAY_B"], sensor["WATERFLOW_AIR"], 'air'))
+            print("Tambahin air")
+            while not(peracikan_state['airEnough']):
+                await asyncio.sleep(0.2)
 
-async def peracikan(pH, ppm, volume_air, volume_a, volume_b, durasi=None, pin_selenoid=None):
+
+async def peracikan(pH, ppm, volume_air, volume_a, volume_b, konstanta, durasi=None, pin_selenoid=None):
     GPIO.add_event_detect(sensor["WATERFLOW_AIR"], GPIO.FALLING, callback=lambda channel: countPulse(
         channel, volume_air, actuator["RELAY_AIR"], sensor["WATERFLOW_AIR"], 'air'))
     GPIO.add_event_detect(sensor["WATERFLOW_A"], GPIO.FALLING, callback=lambda channel: countPulse(
@@ -168,21 +207,34 @@ async def peracikan(pH, ppm, volume_air, volume_a, volume_b, durasi=None, pin_se
     GPIO.output(actuator["RELAY_AIR"], GPIO.HIGH)
     GPIO.output(actuator["RELAY_A"], GPIO.HIGH)
     GPIO.output(actuator["RELAY_B"], GPIO.HIGH)
-    GPIO.output(actuator["MOTOR_NUTRISI"], GPIO.HIGH)
+    # GPIO.output(actuator["MOTOR_NUTRISI"], GPIO.HIGH)
 
-    relay_state = [{str(actuator["RELAY_AIR"]): bool(GPIO.input(actuator["RELAY_AIR"]))}, {str(actuator["RELAY_A"]): bool(GPIO.input(
-        actuator["RELAY_A"]))}, {str(actuator["RELAY_B"]): bool(GPIO.input(actuator["RELAY_B"]))}]
-    await client.publish("iterahero2023/actuator", json.dumps({"actuator": relay_state}))
+    relay_state = [{str(actuator["MOTOR_MIXING"]): bool(GPIO.input(actuator["MOTOR_MIXING"]))},
+                   {str(actuator["RELAY_AIR"]): bool(
+                       GPIO.input(actuator["RELAY_AIR"]))},
+                   {str(actuator["RELAY_A"]): bool(
+                       GPIO.input(actuator["RELAY_A"]))},
+                   {str(actuator["RELAY_B"]): bool(GPIO.input(actuator["RELAY_B"]))}]
+    await client.publish("iterahero2023/actuator", json.dumps({"actuator": relay_state}), qos=1)
 
-    while not (peracikan_state['airEnough']) and not (peracikan_state['asamEnough']) and not (peracikan_state['basaEnough']):
-        print("Lagi ngeracik")
-        await asyncio.sleep(0.7)
+    while not (peracikan_state['airEnough']) or not (peracikan_state['nutrisiBEnough']) or not (peracikan_state['nutrisiAEnough']):
+        # print("Lagi ngeracik")
+        curr_time = datetime.datetime.now()
+        print(
+            f"{curr_time} Volume air yang keluar: {round(debit['air'] / 378, 3)} L")
+        print(
+            f"{curr_time} Volume Nutrisi A yang keluar: {round(debit['nutrisiA'] / 378, 3)} L")
+        print(
+            f"{curr_time} Volume Nutrisi B yang keluar: {round(debit['nutrisiB'] / 378, 3)} L")
+        await asyncio.sleep(1)
+
+    peracikan_state.update((key, False) for key in peracikan_state)
 
     GPIO.output(actuator["MOTOR_MIXING"], GPIO.LOW)
     GPIO.output(actuator["RELAY_AIR"], GPIO.LOW)
     GPIO.output(actuator["RELAY_A"], GPIO.LOW)
     GPIO.output(actuator["RELAY_B"], GPIO.LOW)
-    GPIO.output(actuator["MOTOR_NUTRISI"], GPIO.LOW)
+    # GPIO.output(actuator["MOTOR_NUTRISI"], GPIO.LOW)
 
     #  temp_value
     ppm_value, ph_value, temp_value = await asyncio.gather(
@@ -190,80 +242,60 @@ async def peracikan(pH, ppm, volume_air, volume_a, volume_b, durasi=None, pin_se
         pH_sensor.read_value(),
         temp_sensor.read_value()
     )
-    print(f"\npH Larutan: {ph_value}\nPPM Larutan: {ppm_value}\nSuhu Larutan: {temp_value}\n")
+    print(
+        f"\npH Larutan: {ph_value}\nPPM Larutan: {ppm_value}\nSuhu Larutan: {temp_value}\n")
 
-    # # VALIDASI PH
-    # if 6.0 <= ph_value <= 7.0:
-    #     print("PH aman")
-    # else:
-    #     # ada yang ditambahin asam / basa
-    #     if ph_value < 6.2:
-    #         print("Tambahin Basa")
-    #         # Basa yang dibutuhin berapa
-    #         # Basa = ....
-    #         vol_basa = 0  # dummy
-    #         GPIO.add_event_detect(sensor["WATERFLOW_ASAM_BASA"], GPIO.FALLING, callback=lambda channel: countPulse(
-    #             channel, vol_basa, actuator["RELAY_BASA"], sensor["WATERFLOW_ASAM_BASA"], 'basa'))
-    #     else:
-    #         print("Tambahin asam")
-    #         # Asam yang dibutuhin berapa
-    #         # Asam = ....
-    #         vol_asam = 0  # dummy
-    #         GPIO.add_event_detect(sensor["WATERFLOW_ASAM_BASA"], GPIO.FALLING, callback=lambda channel: countPulse(
-    #             channel, vol_asam, actuator["RELAY_ASAM"], sensor["WATERFLOW_ASAM_BASA"], 'asam'))
+    # VALIDASI PH
+    if 6.0 <= ph_value <= 7.0:
+        print("PH aman")
+    else:
+        # ada yang ditambahin asam / basa
+        if ph_value < 6.2:
+            print("Tambahin Basa")
+            # Basa yang dibutuhin berapa
+            # Basa = ....
+            # vol_basa = 0  # dummy
+            # GPIO.add_event_detect(sensor["WATERFLOW_ASAM_BASA"], GPIO.FALLING, callback=lambda channel: countPulse(
+            # channel, vol_basa, actuator["RELAY_BASA"], sensor["WATERFLOW_ASAM_BASA"], 'basa'))
+        else:
+            print("Tambahin asam")
+            # Asam yang dibutuhin berapa
+            # Asam = ....
+            # vol_asam = 0  # dummy
+            # GPIO.add_event_detect(sensor["WATERFLOW_ASAM_BASA"], GPIO.FALLING, callback=lambda channel: countPulse(
+            #     channel, vol_asam, actuator["RELAY_ASAM"], sensor["WATERFLOW_ASAM_BASA"], 'asam'))
 
-    # # VALIDASI PPM
-    # if ppm - 200 <= ppm_value <= ppm + 200:
-    #     print("PPM Aman")
-    # else:
-    #     # ada yang ditambahin air / nutrisi
-    #     if ppm_value < 1000:
-    #         print("Tambahin nutrisi")
-    #         # 1mL : 1mL : 1L -> PPM nya naik 270
-    #         # berarti vol_estimated = 1mL * volume naik ppmnya 270
-    #         # ppm tambahan target / 270 * vol_estimated
-    #         peracikan_state["nutrisiAEnough"] = False
-    #         peracikan_state["nutrisiBEnough"] = False
-    #         vol_nutrisi = ppm-ppm_value / 270 * (volume / 1000)
-    #         GPIO.add_event_detect(sensor["WATERFLOW_A"], GPIO.FALLING, callback=lambda channel: countPulse(
-    #             channel, vol_nutrisi, actuator["RELAY_A"], sensor["WATERFLOW_A"], 'nutrisiA'))
-    #         GPIO.add_event_detect(sensor["WATERFLOW_B"], GPIO.FALLING, callback=lambda channel: countPulse(
-    #             channel, vol_nutrisi, actuator["RELAY_B"], sensor["WATERFLOW_B"], 'nutrisiB'))
-    #         while not(peracikan_state["nutrisiAEnough"]) and not(peracikan_state["nutrisiBEnough"]):\
-    #             asyncio.sleep(0.1)
-    #     else:
-    #         print("Tambahin air")
+    # VALIDASI PPM
+    await validasi_pH(ppm, ppm_value, konstanta)       
 
     # await asyncio.create_task(penyiraman(pin_selenoid, durasi))
     await client.publish("iterahero2023/peracikan/info", json.dumps({"status": "Ada isinya"}), qos=1)
-
-    if pin_selenoid and durasi:
-        print("Bisa didistribusi nih coy")
-
     await turn_off_peracikan()
+
     peracikan_state.update((key, False) for key in peracikan_state)
+    debit.update((key, 0) for key in debit)
 
 
 async def publish_sensor(client):
     while True:
         ppm_value, ph_value, temp_value = await asyncio.gather(
-        EC_sensor.read_value(),
-        pH_sensor.read_value(),
-        temp_sensor.read_value()
-    )
+            EC_sensor.read_value(),
+            pH_sensor.read_value(),
+            temp_sensor.read_value()
+        )
         ph_value = ph_value if ph_value > 0 else 0
         ppm_value = ppm_value if ppm_value > 0 else 0
         temp_value = temp_value if temp_value > 0 else 0
 
         await client.publish("iterahero2023/info", json.dumps({"sensor_adc": [
-            {str(sensor_adc[0]): round(ph_value, 2) }, {sensor_adc[1]: ppm_value}], "sensor_non_adc": [{str(sensor_non_adc[0]): round(temp_value, 2)}]}))
+            {str(sensor_adc[0]): round(ph_value, 2)}, {sensor_adc[1]: ppm_value}], "sensor_non_adc": [{str(sensor_non_adc[0]): round(temp_value, 2)}]}))
         await asyncio.sleep(2.5)
 
 
 def on_off_actuator(pin):
     state = GPIO.input(pin)
-    GPIO.output(pin, not(state))
-    print('Nyala' if not(state) else 'Mati')
+    GPIO.output(pin, not (state))
+    print('Nyala' if not (state) else 'Mati')
 
 
 async def main():
@@ -276,59 +308,34 @@ async def main():
                             protocol=paho.MQTTv5,
                             tls_params=tls_params)
     async with client:
-        print("MQTT Ready")
-        await asyncio.sleep(0.2)
-        asyncio.create_task(publish_sensor(client))
-        async with client.messages() as messages:
-            await client.subscribe("iterahero2023/#")
-            async for message in messages:
-                if message.topic.matches("iterahero2023/kontrol"):
-                    data = json.loads(message.payload)
-                    print(data['pin'])
-                    on_off_actuator(data['pin'])
-                if message.topic.matches("iterahero2023/waterflow"):
-                    data = json.loads(message.payload)
-                    print(data)
-                    asyncio.create_task(test_waterflow())
-                if message.topic.matches("iterahero2023/peracikan"):
-                    x = check_peracikan()
-                    if x:
-                        print("Masih ada peracikan yang berjalan")
-                    else:
+        try:
+            print("MQTT Ready")
+            await asyncio.sleep(0.2)
+            asyncio.create_task(publish_sensor(client))
+            async with client.messages() as messages:
+                await client.subscribe("iterahero2023/#")
+                async for message in messages:
+                    if message.topic.matches("iterahero2023/kontrol"):
                         data = json.loads(message.payload)
-                        komposisi = data['komposisi']
-                        await client.publish("iterahero2023/peracikan/info", json.dumps({"status": "Meracik " + komposisi['nama']}), qos=1)
-                        volume = komposisi['volume']
-                        ph = komposisi['ph']
-                        ppm = komposisi['ppm']
-                        konstanta = data['konstanta']
-                        komposisi = data['komposisi']
-                        print(konstanta)
-                        nutrisiA = round(
-                            ppm / konstanta['ppm'] * konstanta['rasioA'] * volume / 1000, 3)
-                        nutrisiB = round(
-                            ppm / konstanta['ppm'] * konstanta['rasioB'] * volume / 1000, 3)
-                        air = volume - (nutrisiA + nutrisiB)
-                        asyncio.create_task(peracikan(
-                            ph, ppm, volume_a=nutrisiA, volume_b=nutrisiB,
-                            volume_air=air))
-
-                if message.topic.matches("iterahero2023/penjadwalan-peracikan"):
-                    x = check_peracikan()
-                    if x:
-                        print("Masih ada peracikan yang berjalan")
-                    else:
-                        try:
-                            await client.publish("iterahero2023/peracikan/info", json.dumps({"status": "Peracikan"}), qos=1)
+                        print(data['pin'])
+                        on_off_actuator(data['pin'])
+                    if message.topic.matches("iterahero2023/waterflow"):
+                        data = json.loads(message.payload)
+                        asyncio.create_task(test_waterflow(data['volume']))
+                    if message.topic.matches("iterahero2023/peracikan"):
+                        x = check_peracikan()
+                        if x:
+                            print("Masih ada peracikan yang berjalan")
+                        else:
                             data = json.loads(message.payload)
                             komposisi = data['komposisi']
+                            await client.publish("iterahero2023/peracikan/info", json.dumps({"status": "Meracik " + komposisi['nama']}), qos=1)
                             volume = komposisi['volume']
                             ph = komposisi['ph']
                             ppm = komposisi['ppm']
-                            durasi = data['lamaPenyiraman']
                             konstanta = data['konstanta']
-
-                            # Menimbang ada konstanta rasio A : B : Air, maka:
+                            komposisi = data['komposisi']
+                            print(konstanta)
                             nutrisiA = round(
                                 ppm / konstanta['ppm'] * konstanta['rasioA'] * volume / 1000, 3)
                             nutrisiB = round(
@@ -336,25 +343,65 @@ async def main():
                             air = volume - (nutrisiA + nutrisiB)
 
                             # Print value variabel
-                            # checkVAR(locals())
-
-                            port = [aktuator['GPIO'] or aktuator['channel']
-                                    for aktuator in data['aktuator']]
-                            aktuator = [
-                                value for value in port if value in actuator.values()]
-
-                            if len(aktuator) < 1:
-                                raise ValueError('Aktuator gaada')
+                            checkVAR(locals())
 
                             asyncio.create_task(peracikan(
                                 ph, ppm, volume_a=nutrisiA, volume_b=nutrisiB,
-                                volume_air=air, durasi=durasi, pin_selenoid=aktuator))
+                                volume_air=air, konstanta=konstanta))
 
-                        except KeyError as e:
-                            print(f"Gaada {e}")
+                    if message.topic.matches("iterahero2023/penjadwalan-peracikan"):
+                        x = check_peracikan()
+                        if x:
+                            print("Masih ada peracikan yang berjalan")
+                        else:
+                                await client.publish("iterahero2023/peracikan/info", json.dumps({"status": "Peracikan"}), qos=1)
+                                data = json.loads(message.payload)
+                                komposisi = data['komposisi']
+                                volume = komposisi['volume']
+                                ph = komposisi['ph']
+                                ppm = komposisi['ppm']
+                                durasi = data['lamaPenyiraman']
+                                konstanta = data['konstanta']
 
-                        except (ValueError, KeyboardInterrupt) as e:
-                            print(f"{e}")
+                                # Menimbang ada konstanta rasio A : B : Air, maka:
+                                nutrisiA = round(
+                                    ppm / konstanta['ppm'] * konstanta['rasioA'] * volume / 1000, 3)
+                                nutrisiB = round(
+                                    ppm / konstanta['ppm'] * konstanta['rasioB'] * volume / 1000, 3)
+                                air = volume - (nutrisiA + nutrisiB)
+
+                                # Print value variabel
+                                checkVAR(locals())
+
+                                port = [aktuator['GPIO'] or aktuator['channel']
+                                        for aktuator in data['aktuator']]
+                                aktuator = [
+                                    value for value in port if value in actuator.values()]
+
+                                if len(aktuator) < 1:
+                                    raise ValueError('Aktuator gaada')
+
+                                asyncio.create_task(peracikan(
+                                    ph, ppm, volume_a=nutrisiA, volume_b=nutrisiB,
+                                    volume_air=air, durasi=durasi, pin_selenoid=aktuator))
+                    if message.topic.matches("iterahero2023/penjadwalan-distribusi"):
+                        x = check_peracikan()
+                        if x:
+                            print("Masih ada peracikan yang berjalan")
+                        else:
+                            await client.publish("iterahero2023/peracikan/info", json.dumps({"status": "Penyiraman"}), qos=1)
+                            data = json.loads(message.payload)
+                            selenoid_distribusi = data['aktuator']
+                            lama_penyiraman = data['lamaPenyiraman']
+                            print(selenoid_distribusi)
+                            asyncio.create_task(penyiraman(selenoid_distribusi, lama_penyiraman))
+
+
+        except KeyError as e:
+            print(f"Gaada {e}")
+
+        except (ValueError, KeyboardInterrupt) as e:
+            print(f"{e}")
 
 if __name__ == "__main__":
     try:

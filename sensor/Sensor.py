@@ -84,12 +84,12 @@ class SensorSuhu(Sensor):
                 self.path = device_folder + '/w1_slave'
             except IndexError:
                 print(f"{self.name} tidak terhubung ke raspi")
-                # time.sleep(1.5)
-                return
+                time.sleep(2)
+                # return
 
     def info(self):
         super().info()
-        print()
+        # print()
 
     def read_temp_raw(self):
         if self.path:
@@ -139,7 +139,7 @@ class SensorSuhu(Sensor):
                     elif suhu > val_max:
                         val_max = suhu
                 
-            print()
+            # print()
             # return round(suhu / self.timeout, 2)
             return (val_min + val_max) / 2
         else:
