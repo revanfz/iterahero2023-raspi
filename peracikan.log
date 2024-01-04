@@ -1,94 +1,10 @@
-failed to receive on socket: [Errno 104] Connection reset by peer
-MQTT Ready
-PPM : 66 ppm
-pH larutan: 7.06
-Suhu Larutan: 29.7
-PPM : -26 ppm
-pH larutan: 7.25
-Suhu Larutan: 29.7
-PPM : 32 ppm
-pH larutan: 7.23
-Suhu Larutan: 29.7
-PPM : -26 ppm
-pH larutan: 7.25
-Suhu Larutan: 29.7
-
-PPM : -37 ppm
-pH larutan: 7.06
-Suhu Larutan: 29.7
-PPM : -49 ppm
-pH larutan: 7.23
-Suhu Larutan: 29.7
-PPM : 32 ppm
-pH larutan: 7.16
-Suhu Larutan: 29.7
-PPM : -49 ppm
-pH larutan: 7.06
-Suhu Larutan: 29.7
-
-PPM : 66 ppm
-pH larutan: 7.05
-Suhu Larutan: 29.7
-PPM : -26 ppm
-pH larutan: 7.05
-Suhu Larutan: 29.7
-PPM : -2 ppm
-pH larutan: 7.05
-Suhu Larutan: 29.7
-PPM : -37 ppm
-pH larutan: 7.16
-Suhu Larutan: 29.7
-
-PPM : -37 ppm
-pH larutan: 7.19
-Suhu Larutan: 29.7
-PPM : 20 ppm
-pH larutan: 7.23
-Suhu Larutan: 29.7
-PPM : -14 ppm
-pH larutan: 7.27
-Suhu Larutan: 29.7
-PPM : -2 ppm
-pH larutan: 7.19
-Suhu Larutan: 29.7
-
-PPM : -49 ppm
-pH larutan: 7.03
-Suhu Larutan: 29.7
-PPM : -60 ppm
-pH larutan: 7.03
-Suhu Larutan: 29.7
-PPM : 55 ppm
-pH larutan: 7.12
-Suhu Larutan: 29.7
-PPM : -49 ppm
-pH larutan: 7.03
-Suhu Larutan: 29.7
-
-PPM : -37 ppm
-pH larutan: 7.21
-Suhu Larutan: 29.7
-PPM : -60 ppm
-pH larutan: 7.23
-Suhu Larutan: 29.7
-PPM : -26 ppm
-pH larutan: 7.23
 Traceback (most recent call last):
-  File "/home/iterahero2023/iterahero2023/main.py", line 283, in main
-    async for message in messages:
-  File "/home/iterahero2023/.local/lib/python3.9/site-packages/aiomqtt/client.py", line 857, in _generator
-    raise MqttError(msg)
-aiomqtt.error.MqttError: Disconnected during message iteration
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/home/iterahero2023/iterahero2023/main.py", line 370, in <module>
+  File "/home/iterahero2023/iterahero2023/main.py", line 492, in <module>
     loop.run_until_complete(main())
   File "/usr/lib/python3.9/asyncio/base_events.py", line 642, in run_until_complete
     return future.result()
-  File "/home/iterahero2023/iterahero2023/main.py", line 356, in main
-    print(f"{e}")
-  File "/home/iterahero2023/.local/lib/python3.9/site-packages/aiomqtt/client.py", line 1107, in __aexit__
-    raise exc
-aiomqtt.error.MqttCodeError: [code:7] The connection was lost.
+  File "/home/iterahero2023/iterahero2023/main.py", line 381, in main
+    async with client:
+  File "/home/iterahero2023/.local/lib/python3.9/site-packages/aiomqtt/client.py", line 1088, in __aenter__
+    raise MqttError(str(error)) from None
+aiomqtt.error.MqttError: [Errno -3] Temporary failure in name resolution

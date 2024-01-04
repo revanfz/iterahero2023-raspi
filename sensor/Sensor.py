@@ -16,7 +16,7 @@ class Sensor:
     def __init__(self, name, persamaan) -> None:
         self.name = name
         self.persamaan = persamaan
-        self.timeout = 4
+        self.timeout = 3
 
     def info(self):
         print(f"Nama: {self.name}")
@@ -44,16 +44,17 @@ class SensorADC(Sensor):
             # Baca nilai channel MCP
             values = mcp.read_adc(self.channel)
             if self.tipe == "ec":
-                ec = round((values - 13.663) / 0.043, 3) - 60  # Persamaan 1000
+                ec = round((values - 13.663) / 0.043, 3) # Persamaan 1000
+                # ec = round((values - 17.991) / 0.0426, 3)
+                # ec = (values - 0.1736) / 0.0507
                 raw = int(ec / 1000 * 500)
 
                 # print(f"EC larutan: { ec } µs/cm")
                 # print(f"EC larutan: { round(ec / 1000, 3) } ms/cm")
-                print(f"PPM : { raw } ppm", end='\n')
+                # print(f"PPM : { raw } ppm", end='\n')
             elif self.tipe == 'ph':
-                raw = round((values - 858.77) / -54.465, 2)
-
-                print(f"pH larutan: { raw }")
+                raw = round(((values - 858.77) / -54.465), 2) 
+                # print(f"pH larutan: { raw }")
             if count == 1:
                 val_min = raw
                 val_max = raw
@@ -63,7 +64,7 @@ class SensorADC(Sensor):
                 elif raw > val_max:
                     val_max = raw
             total += raw
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
         # return round(total / self.timeout, 2)
         return (val_min + val_max) / 2
 
@@ -127,9 +128,8 @@ class SensorSuhu(Sensor):
             while count < self.timeout:
                 count += 1
                 suhu = await self.read_temp()
-                print(f"Suhu Larutan: {suhu}")
+                # print(f"Suhu Larutan: {suhu}")
                 total += suhu
-                await asyncio.sleep(0.5)
                 if count == 1:
                     val_min = suhu
                     val_max = suhu
@@ -138,7 +138,7 @@ class SensorSuhu(Sensor):
                         val_min = suhu
                     elif suhu > val_max:
                         val_max = suhu
-                
+                await asyncio.sleep(0.5)                
             # print()
             # return round(suhu / self.timeout, 2)
             return (val_min + val_max) / 2
