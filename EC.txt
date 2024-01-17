@@ -1,0 +1,304 @@
+EC 12.88 ms/cm
+
+66. Voltage EC: 1636.0000 mV
+EC: 12.8721ms/cm
+
+67. Voltage EC: 1636.0000 mV
+EC: 12.8721ms/cm
+
+68. Voltage EC: 1640.0000 mV
+EC: 12.9036ms/cm
+
+69. Voltage EC: 1638.0000 mV
+EC: 12.8879ms/cm
+
+70. Voltage EC: 1634.0000 mV
+EC: 12.8564ms/cm
+
+71. Voltage EC: 1636.0000 mV
+EC: 12.8721ms/cm
+
+72. Voltage EC: 1638.0000 mV
+EC: 12.8879ms/cm
+
+73. Voltage EC: 1637.0000 mV
+EC: 12.8800ms/cm
+
+74. Voltage EC: 1638.0000 mV
+EC: 12.8879ms/cm
+
+75. Voltage EC: 1634.0000 mV
+EC: 12.8564ms/cm
+
+76. Voltage EC: 1637.0000 mV
+EC: 12.8800ms/cm
+
+77. Voltage EC: 1639.0000 mV
+EC: 12.8957ms/cm
+
+78. Voltage EC: 1634.0000 mV
+EC: 12.8564ms/cm
+
+79. Voltage EC: 1636.0000 mV
+EC: 12.8721ms/cm
+
+80. Voltage EC: 1638.0000 mV
+EC: 12.8879ms/cm
+
+81. Voltage EC: 1640.0000 mV
+EC: 12.9036ms/cm
+
+82. Voltage EC: 1636.0000 mV
+EC: 12.8721ms/cm
+
+83. Voltage EC: 1640.0000 mV
+EC: 12.9036ms/cm
+
+84. Voltage EC: 1640.0000 mV
+EC: 12.9036ms/cm
+
+85. Voltage EC: 1638.0000 mV
+EC: 12.8879ms/cm
+
+86. Voltage EC: 1638.0000 mV
+EC: 12.8879ms/cm
+
+87. Voltage EC: 1641.0000 mV
+EC: 12.9115ms/cm
+
+88. Voltage EC: 1638.0000 mV
+EC: 12.8879ms/cm
+
+89. Voltage EC: 1635.0000 mV
+EC: 12.8643ms/cm
+
+90. Voltage EC: 1638.0000 mV
+EC: 12.8879ms/cm
+
+91. Voltage EC: 1640.0000 mV
+EC: 12.9036ms/cm
+
+92. Voltage EC: 1638.0000 mV
+EC: 12.8879ms/cm
+
+93. Voltage EC: 1636.0000 mV
+EC: 12.8721ms/cm
+
+94. Voltage EC: 1637.0000 mV
+EC: 12.8800ms/cm
+
+95. Voltage EC: 1638.0000 mV
+EC: 12.8879ms/cm
+
+96. Voltage EC: 1638.0000 mV
+EC: 12.8879ms/cm
+
+97. Voltage EC: 1636.0000 mV
+EC: 12.8721ms/cm
+
+98. Voltage EC: 1641.0000 mV
+EC: 12.9115ms/cm
+
+99. Voltage EC: 1641.0000 mV
+EC: 12.9115ms/cm
+
+100. Voltage EC: 1640.0000 mV
+EC: 12.9036ms/cm
+
+101. Voltage EC: 1642.0000 mV
+EC: 12.9193ms/cm
+
+102. Voltage EC: 1640.0000 mV
+EC: 12.9036ms/cm
+
+103. Voltage EC: 1642.0000 mV
+EC: 12.9193ms/cm
+
+104. Voltage EC: 1642.0000 mV
+EC: 12.9193ms/cm
+
+105. Voltage EC: 1639.0000 mV
+EC: 12.8957ms/cm
+
+106. Voltage EC: 1639.0000 mV
+EC: 12.8957ms/cm
+
+107. Voltage EC: 1640.0000 mV
+EC: 12.9036ms/cm
+
+108. Voltage EC: 1641.0000 mV
+EC: 12.9115ms/cm
+
+109. Voltage EC: 1639.0000 mV
+EC: 12.8957ms/cm
+
+110. Voltage EC: 1641.0000 mV
+EC: 12.9115ms/cm
+
+111. Voltage EC: 1643.0000 mV
+EC: 12.9272ms/cm
+
+112. Voltage EC: 1637.0000 mV
+EC: 12.8800ms/cm
+
+113. Voltage EC: 1644.0000 mV
+EC: 12.9351ms/cm
+
+114. Voltage EC: 1640.0000 mV
+EC: 12.9036ms/cm
+
+115. Voltage EC: 1641.0000 mV
+EC: 12.9115ms/cm
+
+===============x============x============
+1314 us/cm
+
+331. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
+
+332. Voltage EC: 172.0000 mV
+EC: 1.4213ms/cm
+
+333. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+334. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
+
+335. Voltage EC: 172.0000 mV
+EC: 1.4213ms/cm
+
+336. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+337. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
+
+338. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
+
+339. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+340. Voltage EC: 172.0000 mV
+EC: 1.4213ms/cm
+
+341. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+342. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
+
+343. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
+
+344. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+345. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
+
+346. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+347. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+348. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
+
+349. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+350. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+351. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
+
+352. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+353. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+354. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
+
+355. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+356. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
+
+357. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+358. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+359. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
+
+360. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+361. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+362. Voltage EC: 172.0000 mV
+EC: 1.4213ms/cm
+
+363. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+364. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+365. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
+
+366. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+367. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+368. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
+
+369. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+370. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+371. Voltage EC: 172.0000 mV
+EC: 1.4213ms/cm
+
+372. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+373. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+374. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
+
+375. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+376. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+377. Voltage EC: 172.0000 mV
+EC: 1.4213ms/cm
+
+378. Voltage EC: 170.0000 mV
+EC: 1.4047ms/cm
+
+379. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
+
+380. Voltage EC: 171.0000 mV
+EC: 1.4130ms/cm
