@@ -408,7 +408,7 @@ async def main():
                                         volume_air=air, konstanta=konstanta, volume=volume))
 
                 except KeyError as e:
-                    print(f"Gaada {e}")
+                    print(f"Tidak ada {e}")
 
                 except (ValueError, KeyboardInterrupt) as e:
                     print(f"{e}")

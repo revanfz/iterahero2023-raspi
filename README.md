@@ -1,0 +1,1 @@
+crontab -e : @reboot /home/iterahero2023/iterahero2023/start_script.sh
