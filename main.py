@@ -491,7 +491,7 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        sensorEC = SensorADC("Sensor EC", "1000 * voltage / 820 / 200 * 1.45", 0)
+        sensorEC = SensorADC("Sensor EC", "1000 * voltage / 820 / 200 * 1.45", 3)
         sensorPH = SensorADC("Sensor PH", "x", 1)
         sensorSuhu = SensorNonADC("Sensor Suhu", "x", 13)
         waterflowAir = SensorNonADC("Sensor Waterflow Air", "x", 15)
