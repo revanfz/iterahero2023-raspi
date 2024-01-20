@@ -1,13 +1,7 @@
-import os
-import time
-import glob
-import asyncio
-
 class Sensor:
     def __init__(self, name, persamaan) -> None:
         self.name = name
         self.persamaan = persamaan
-        self.timeout = 3
         self.nilai = 0
 
     def info(self):
@@ -16,6 +10,9 @@ class Sensor:
 
     def update(self, nilai):
         self.nilai = nilai
+
+    def reset(self):
+        self.nilai = 0
 
 class SensorADC(Sensor):
     def __init__(self, name, persamaan, channel):
@@ -26,3 +23,12 @@ class SensorNonADC(Sensor):
     def __init__(self, name, persamaan, pin):
         super().__init__(name, persamaan)
         self.pin = pin
+        self.total = 0
+        
+    def update(self, nilai, total = 0):
+        super().update(nilai)
+        self.total = total
+
+    def reset(self):
+        super().reset()
+        self.total = 0
