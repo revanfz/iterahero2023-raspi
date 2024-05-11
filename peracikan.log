@@ -1,10 +1,14 @@
+sh: 1: modprobe: not found
+sh: 1: modprobe: not found
+_GatheringFuture exception was never retrieved
+future: <_GatheringFuture finished exception=MqttError('Operation timed out')>
 Traceback (most recent call last):
-  File "/home/iterahero2023/iterahero2023/main.py", line 492, in <module>
-    loop.run_until_complete(main())
-  File "/usr/lib/python3.9/asyncio/base_events.py", line 642, in run_until_complete
-    return future.result()
-  File "/home/iterahero2023/iterahero2023/main.py", line 381, in main
-    async with client:
-  File "/home/iterahero2023/.local/lib/python3.9/site-packages/aiomqtt/client.py", line 1088, in __aenter__
-    raise MqttError(str(error)) from None
-aiomqtt.error.MqttError: [Errno -3] Temporary failure in name resolution
+  File "/home/iterahero2023/iterahero2023/main.py", line 340, in publish_actuator
+    await MQTT.publish("iterahero2023/info/aktuator", json.dumps({ "aktuator": data, "microcontrollerName": NAME }), qos=1)
+  File "/home/iterahero2023/.local/lib/python3.9/site-packages/aiomqtt/client.py", line 117, in decorated
+    return await method(self, *args, **kwargs)
+  File "/home/iterahero2023/.local/lib/python3.9/site-packages/aiomqtt/client.py", line 687, in publish
+    await self._wait_for(confirmation.wait(), timeout=timeout)
+  File "/home/iterahero2023/.local/lib/python3.9/site-packages/aiomqtt/client.py", line 872, in _wait_for
+    raise MqttError(msg) from None
+aiomqtt.error.MqttError: Operation timed out
