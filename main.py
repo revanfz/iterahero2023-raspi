@@ -100,9 +100,10 @@ def countPulse(channel, volume, relay_aktuator, pin_sensor, cairan):
         if debit[cairan] % 75 == 0:
             print(f"Volume {cairan} yang keluar: {volume[cairan]}")
 
+
 def countPulseManual(channel, relay_aktuator, pin_sensor, cairan):
     """
-        Menghitung debit waterflow
+    Menghitung debit waterflow
     """
     actuator_state = GPIO.input(relay_aktuator)
     if actuator_state:
@@ -173,16 +174,30 @@ async def stop_peracikan():
         "Peracikan Selesai" if peracikan_state["airEnough"] else "Peracikan Dihentikan"
     )
 
-    await MQTT.publish(
-        "iterahero2023/peracikan/info",
-        json.dumps(
-            {
-                "status": "Berisi pupuk",
-                "volume": isi["tandon"],
-                "microcontrollerName": NAME,
-            }
+    relay_state = [
+        {str(actuator["MOTOR_MIXING"]): bool(GPIO.input(actuator["MOTOR_MIXING"]))},
+        {str(actuator["RELAY_AIR"]): bool(GPIO.input(actuator["RELAY_AIR"]))},
+        {str(actuator["RELAY_A"]): bool(GPIO.input(actuator["RELAY_A"]))},
+        {str(actuator["RELAY_B"]): bool(GPIO.input(actuator["RELAY_B"]))},
+    ]
+
+    await asyncio.gather(
+        MQTT.publish(
+            "iterahero2023/peracikan/info",
+            json.dumps(
+                {
+                    "status": "Berisi nutrisi",
+                    "volume": isi["tandon"],
+                    "microcontrollerName": NAME,
+                }
+            ),
+            qos=1,
         ),
-        qos=1,
+        MQTT.publish(
+            "iterahero2023/actuator",
+            json.dumps({"actuator": relay_state, "microcontrollerName": NAME}),
+            qos=1,
+        ),
     )
 
 
@@ -489,7 +504,7 @@ async def peracikan(
                     {
                         "mikrokontroler": NAME,
                         "status": "terminated",
-                        "aktuator": reason,
+                        "sensor": reason,
                     }
                 ),
             )
@@ -503,7 +518,7 @@ async def peracikan(
             "iterahero2023/peracikan/info",
             json.dumps(
                 {
-                    "status": "Ada Isinya",
+                    "status": f"Berisi pupuk {resep}",
                     "volume": isi["tandon"],
                     "microcontrollerName": NAME,
                 }
@@ -587,7 +602,7 @@ def on_off_actuator(pin):
             )
             air_start = time.time()
             air_update = air_start
-        
+
         elif pin == actuator["RELAY_A"]:
             GPIO.add_event_detect(
                 sensor["WATERFLOW_A"],
@@ -626,7 +641,6 @@ def on_off_actuator(pin):
             GPIO.remove_event_detect(sensor["WATERFLOW_B"])
             debit.update("nurtisiB", 0)
 
-
     GPIO.output(pin, not (state))
     print("Mati" if state else "Nyala")
 
@@ -648,10 +662,21 @@ async def publish_sensor():
             ph_value = ph_value if ph_value > 0 else 0
             ppm_value = ppm_value if ppm_value > 0 else 0
             temp_value = temp_value if temp_value > 0 else 0
-            debit_air = (debit["air"] / 378) / (time.time() - air_start) if debit["air"] > 0 else 0
-            debit_a = (debit["nutrisiA"] / 378) / (time.time() - a_start) if debit["nutrisiA"] > 0 else 0
-            debit_b = (debit["nutrisiB"] / 378) / (time.time() - b_start) if debit["nutrisiB"] > 0 else 0
-            
+            debit_air = (
+                (debit["air"] / 378) / (time.time() - air_start)
+                if debit["air"] > 0
+                else 0
+            )
+            debit_a = (
+                (debit["nutrisiA"] / 378) / (time.time() - a_start)
+                if debit["nutrisiA"] > 0
+                else 0
+            )
+            debit_b = (
+                (debit["nutrisiB"] / 378) / (time.time() - b_start)
+                if debit["nutrisiB"] > 0
+                else 0
+            )
 
             await MQTT.publish(
                 "iterahero2023/info/sensor",
@@ -702,12 +727,12 @@ async def publish_actuator(halt=False):
         )
 
 
-async def publishStatus():
+async def publish_status():
     while True:
         try:
             await MQTT.publish(
                 "iterahero2023/mikrokontroller/status",
-                json.dumps({"mikrokontroler": NAME}),
+                json.dumps({"mikrokontroler": NAME, "status": 1}),
                 qos=1,
             )
             await asyncio.sleep(1)
@@ -735,7 +760,7 @@ async def timerActuator(pin, duration):
         elif pin == actuator["RELAY_B"]:
             b_start = time.time()
             b_update = b_start
-        
+
         GPIO.output(pin, GPIO.HIGH)  # Nyala
         print("Nyala")
         await asyncio.sleep(duration * 60)
@@ -753,6 +778,8 @@ async def main():
     #                          tls_params=tls_params,
     #                          keepalive=1800)
     MQTT = aiomqtt.Client(config["mqtt_broker_public"], 1883)
+    MQTT.will_set("iterahero2023/mikrokontroller/status", json.dumps({"mikrokontroler": NAME, "status": 0}), qos=1, retain=True)
+    
     while True:
         try:
             async with MQTT:
@@ -763,7 +790,7 @@ async def main():
                     asyncio.gather(
                         publish_sensor(),
                         publish_actuator(),
-                        publishStatus(),
+                        publish_status(),
                         count_distribusi_nutrisi(),
                         volume_pompa_air(),
                         volume_pompa_A(),
@@ -786,6 +813,9 @@ async def main():
                                 asyncio.create_task(
                                     test_waterflow(data["volume"], data["cairan"])
                                 )
+                            if message.topic.matches("iterahero2023/tandon/volume"):
+                                if data["mikrokontroller"] == NAME:
+                                    isi["tandon"] = data["volume"]
                             if (
                                 message.topic.matches("iterahero2023/peracikan")
                                 and data["konstanta"]["aktuator"][0]["microcontroller"][
@@ -796,16 +826,6 @@ async def main():
                                 x = check_peracikan()
                                 if x:
                                     print("Masih ada peracikan yang berjalan")
-                                    await MQTT.publish(
-                                        "iterahero2023/peracikan/info",
-                                        json.dumps(
-                                            {
-                                                "status": "Ada Isinya",
-                                                "volume": isi["tandon"],
-                                                "microcontrollerName": NAME,
-                                            }
-                                        ),
-                                    )
                                 else:
                                     komposisi = data["komposisi"]
                                     volume = komposisi["volume"]
@@ -883,12 +903,32 @@ if __name__ == "__main__":
             "Sensor EC DF Robot", "y = (0.043x + 13.663) - 60", 1, "ec"
         )
         temp_sensor = SensorSuhu("Sensor Suhu DS18B20", "y = x - 1.63", 15)
-        waterflow_air = SensorWaterflow(name="Waterflow Air", persamaan="y = (x / 378) - (time_now - time_start)", gpio=sensor["WATERFLOW_AIR"], pulse=378)
-        waterflow_a = SensorWaterflow(name="Waterflow A", persamaan="y = (x / 378) - (time_now - time_start)", gpio=sensor["WATERFLOW_A"], pulse=378)
-        waterflow_b = SensorWaterflow(name="Waterflow B", persamaan="y = (x / 378) - (time_now - time_start)", gpio=sensor["WATERFLOW_B"], pulse=378)
+        waterflow_air = SensorWaterflow(
+            name="Waterflow Air",
+            persamaan="y = (x / 378) - (time_now - time_start)",
+            gpio=sensor["WATERFLOW_AIR"],
+            pulse=378,
+        )
+        waterflow_a = SensorWaterflow(
+            name="Waterflow A",
+            persamaan="y = (x / 378) - (time_now - time_start)",
+            gpio=sensor["WATERFLOW_A"],
+            pulse=378,
+        )
+        waterflow_b = SensorWaterflow(
+            name="Waterflow B",
+            persamaan="y = (x / 378) - (time_now - time_start)",
+            gpio=sensor["WATERFLOW_B"],
+            pulse=378,
+        )
 
         sensor_adc = [pH_sensor.channel, EC_sensor.channel]
-        sensor_non_adc = [temp_sensor.GPIO, waterflow_air.GPIO, waterflow_a.GPIO, waterflow_b.GPIO]
+        sensor_non_adc = [
+            temp_sensor.GPIO,
+            waterflow_air.GPIO,
+            waterflow_a.GPIO,
+            waterflow_b.GPIO,
+        ]
 
         loop = asyncio.get_event_loop()
         loop.run_until_complete(main())
@@ -901,7 +941,7 @@ if __name__ == "__main__":
                 "iterahero2023/peracikan/info",
                 json.dumps(
                     {
-                        "status": "Ada Isinya",
+                        "status": "Berisi nutrisi",
                         "volume": isi["tandon"],
                         "microcontrollerName": NAME,
                     }
