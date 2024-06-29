@@ -88,13 +88,22 @@ def countPulse(channel, volume, relay_aktuator, pin_sensor, cairan):
         cairan: cairan yang dikeluarkan
         distribusi: apakah peracikan untuk distribusi
     """
+    global distribusi_start, distribusi_update, air_start, air_update, a_start, a_update, b_start, b_update
+    
     actuator_state = GPIO.input(relay_aktuator)
     if actuator_state:
         debit[cairan] += 1
         volume[cairan] = debit[cairan] / 378
         if volume[cairan] >= volume:
             GPIO.output(relay_aktuator, GPIO.LOW)
+            if cairan == "air":
+                start_time = air_start
+            elif cairan == "nutrisiB":
+                start_time = b_start
+            elif cairan == "nutiriA":
+                start_time = a_start
             peracikan_state[cairan + "Enough"] = True
+            print(f"{volume} L membutuhkan waktu {time.time() - start_time} ")
             GPIO.remove_event_detect(pin_sensor)
             debit[cairan] = 0
         if debit[cairan] % 75 == 0:
@@ -208,6 +217,7 @@ async def test_waterflow(volume, cairan):
         volume: volume target yang ingin dikeluarkan
         cairan: cairan yang dikeluarkan
     """
+    global distribusi_start, distribusi_update, air_start, air_update, a_start, a_update, b_start, b_update
     if cairan == "air":
         GPIO.add_event_detect(
             sensor["WATERFLOW_AIR"],
@@ -216,6 +226,8 @@ async def test_waterflow(volume, cairan):
                 channel, volume, actuator["RELAY_AIR"], sensor["WATERFLOW_AIR"], cairan
             ),
         )
+        air_start = time.time()
+        air_update = air_start
         GPIO.output(actuator["RELAY_AIR"], GPIO.HIGH)
     elif cairan == "nutrisiA":
         GPIO.add_event_detect(
@@ -225,6 +237,8 @@ async def test_waterflow(volume, cairan):
                 channel, volume, actuator["RELAY_A"], sensor["WATERFLOW_A"], cairan
             ),
         )
+        a_start = time.time()
+        a_update = a_start
         GPIO.output(actuator["RELAY_A"], GPIO.HIGH)
     elif cairan == "nutrisiB":
         GPIO.add_event_detect(
@@ -234,6 +248,9 @@ async def test_waterflow(volume, cairan):
                 channel, volume, actuator["RELAY_B"], sensor["WATERFLOW_B"], cairan
             ),
         )
+        
+        b_start = time.time()
+        b_update = b_start
         GPIO.output(actuator["RELAY_B"], GPIO.HIGH)
 
 

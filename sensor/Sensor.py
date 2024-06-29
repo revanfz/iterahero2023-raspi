@@ -94,7 +94,7 @@ class SensorSuhu(Sensor):
                 self.path = device_folder + "/w1_slave"
             except IndexError:
                 print(f"{self.name} tidak terhubung ke raspi")
-                time.sleep(2)
+                time.sleep(3)
 
     def info(self):
         super().info()
