@@ -17,10 +17,14 @@ class Sensor:
         self.name = name
         self.persamaan = persamaan
         self.timeout = 5
+        self.nilai = 0
 
     def info(self):
         print(f"Nama: {self.name}")
         print(f"Persamaan: {self.persamaan}")
+
+    def update(self, nilai):
+        self.nilai = nilai
 
 
 class SensorADC(Sensor):

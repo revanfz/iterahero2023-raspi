@@ -10,6 +10,7 @@ import aiomqtt
 
 import RPi.GPIO as GPIO
 import paho.mqtt.client as paho
+import serial.tools.list_ports
 
 from sensor.Sensor import SensorADC, SensorSuhu, SensorWaterflow
 
@@ -717,6 +718,87 @@ async def publish_sensor():
 
         except (asyncio.CancelledError, KeyboardInterrupt):
             print("Publish Sensor dihentikan")
+
+async def readSensor():  
+    global ESP_ser
+    def find_serial_port():
+        ports = serial.tools.list_ports.comports()
+        for port, desc, hwid in sorted(ports):
+            if "USB" in desc:
+                return port
+
+        return None
+
+    ESP_ser = serial.Serial(find_serial_port(), 115200)
+    ESP_ser.close()
+    await asyncio.sleep(2)
+    ESP_ser.open()
+    ESP_ser.flush()
+
+    lastPubTime = time.time()
+
+    while True:
+        try:
+            if ESP_ser.in_waiting > 0:
+                data = ESP_ser.readline().decode('utf-8').rstrip()
+                json_data = json.loads(data)
+                # microcontroller = json_data["microcontroller"]
+
+                if 'info' in json_data:
+                    temp_sensor.update(round(json_data["info"]["temperature"], 2))
+                    pH_sensor.update(round(json_data["info"]["ph"], 2))
+                    EC_sensor.update(round(json_data["info"]["ec"], 3))
+                
+                debit_air = (
+                    (debit["air"] / 378) / (time.time() - air_start)
+                    if debit["air"] > 0
+                    else 0
+                )
+                debit_a = (
+                    (debit["nutrisiA"] / 378) / (time.time() - a_start)
+                    if debit["nutrisiA"] > 0
+                    else 0
+                )
+                debit_b = (
+                    (debit["nutrisiB"] / 378) / (time.time() - b_start)
+                    if debit["nutrisiB"] > 0
+                    else 0
+                )
+
+                currentTime = time.time()
+                if currentTime - lastPubTime > 2:
+                    print(f"Suhu: {temp_sensor.nilai}\tEC: {EC_sensor.nilai}\tpH: {pH_sensor.nilai}")
+
+                    await MQTT.publish("iterahero2023/info/sensor", json.dumps({"sensor_adc": [
+                            {str(pH_sensor.channel): round(pH_sensor.nilai, 2)}, {EC_sensor.channel: EC_sensor.nilai}], 
+                        "sensor_non_adc": [{str(temp_sensor.pin): round(temp_sensor.nilai, 2)}, 
+                            {str(sensor_non_adc[1]): round(debit_air, 3)},
+                            {str(sensor_non_adc[2]): round(debit_a, 3)},
+                            {str(sensor_non_adc[3]): round(debit_b, 3)}], "microcontollerName": NAME
+                        }), qos=1)
+                    
+                    await MQTT.publish("iterahero2023/mikrokontroller/status", json.dumps({
+                        "mikrokontroler": NAME
+                    }), qos=1)
+
+                    lastPubTime = time.time()
+                
+        except json.JSONDecodeError as e:
+            # print(f"Gagal memparsing json : {e}")
+            continue
+
+        except UnicodeDecodeError as e:
+            # print(f"Error decoding data: {e}")
+            continue
+
+        except KeyError:
+            print(f"Key yang diperlukan tidak ditemukan")
+            continue
+
+        except KeyboardInterrupt as e:
+            print(f"Pembacaan sensor dihentikan")
+            break
+               
 
 
 async def publish_actuator(halt=False):
