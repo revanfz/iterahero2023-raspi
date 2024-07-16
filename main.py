@@ -1,27 +1,36 @@
 import os
 import math
 from random import randint, uniform
+import math
+from random import randint, uniform
 import ssl
 import sys
 import json
 import asyncio
+import time
 import time
 import aiomqtt
 
 import RPi.GPIO as GPIO
 import paho.mqtt.client as paho
 import serial.tools.list_ports
+import serial.tools.list_ports
 
 from aiomqtt import Will
 from sensor.Sensor import SensorADC, SensorSuhu, SensorWaterflow
 
 with open(os.path.dirname(__file__) + "/config.json") as config_file:
+
     config_str = config_file.read()
     config = json.loads(config_str)
 
 # DEKLARASI PIN  DAN VARIABEL #
+# DEKLARASI PIN  DAN VARIABEL #
 actuator = {
     "RELAY_AIR": 5,
+    "RELAY_A": 17,
+    "RELAY_B": 2,
+    "RELAY_ASAM": 20,
     "RELAY_A": 17,
     "RELAY_B": 2,
     "RELAY_ASAM": 20,
@@ -29,22 +38,34 @@ actuator = {
     "RELAY_DISTRIBUSI": 6,
     "MOTOR_MIXING": 16,
     "MOTOR_NUTRISI": 25,
+    "MOTOR_MIXING": 16,
+    "MOTOR_NUTRISI": 25,
 }
 
+isi = {"tandon": 0}
 isi = {"tandon": 0}
 
 sensor = {
     "WATERFLOW_A": 13,
     "WATERFLOW_B": 26,
+    "WATERFLOW_A": 13,
+    "WATERFLOW_B": 26,
     "WATERFLOW_ASAM_BASA": 18,
+    "WATERFLOW_AIR": 24,
     "WATERFLOW_AIR": 24,
 }
 
+debit = {"air": 0, "asam": 0, "basa": 0, "distribusi": 0, "nutrisiA": 0, "nutrisiB": 0}
 debit = {"air": 0, "asam": 0, "basa": 0, "distribusi": 0, "nutrisiA": 0, "nutrisiB": 0}
 
 sum_volume = {"nutrisiA": 0, "nutrisiB": 0, "air": 0, "asam": 0, "basa": 0}
 
 peracikan_state = {
+    "airEnough": False,
+    "basaEnough": False,
+    "asamEnough": False,
+    "nutrisiAEnough": False,
+    "nutrisiBEnough": False,
     "airEnough": False,
     "basaEnough": False,
     "asamEnough": False,
@@ -76,12 +97,24 @@ GPIO.setwarnings(False)
 for actuator_name, actuator_pin in actuator.items():
     GPIO.setup(actuator_pin, GPIO.OUT)
     GPIO.output(actuator_pin, GPIO.LOW)
+    GPIO.output(actuator_pin, GPIO.LOW)
 
 for sensor_name, sensor_pin in sensor.items():
     GPIO.setup(sensor_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 
 def countPulse(channel, volume, relay_aktuator, pin_sensor, cairan):
+    """
+    Menghtung volume yang keluar dari waterflow
+    args:
+        volume: volume target yang ingin dikeluarkan
+        relay_aktuator: pin relay untuk mengontrol aktuator
+        pin_sensor: pin sensor yang digunakan
+        cairan: cairan yang dikeluarkan
+        distribusi: apakah peracikan untuk distribusi
+    """
+    global distribusi_start, distribusi_update, air_start, air_update, a_start, a_update, b_start, b_update
+    
     """
     Menghtung volume yang keluar dari waterflow
     args:
@@ -137,8 +170,25 @@ def kontrol_peracikan(state=False, mix=False):
     if mix:
         GPIO.output(actuator["MOTOR_MIXING"], control)
 
+def kontrol_peracikan(state=False, mix=False):
+    """
+    Mengontrol aktuator peracikan
+    args:
+        state: true jika ingin menyalakan, false untuk mematikan
+        mix: apakah motor berputar
+    """
+    control = GPIO.HIGH if state else GPIO.LOW
+    GPIO.output(actuator["RELAY_AIR"], control)
+    GPIO.output(actuator["RELAY_A"], control)
+    GPIO.output(actuator["RELAY_B"], control)
+    if mix:
+        GPIO.output(actuator["MOTOR_MIXING"], control)
+
 
 def check_peracikan():
+    """
+    Mengecek apakah peracikan sedang berjalan
+    """
     """
     Mengecek apakah peracikan sedang berjalan
     """
@@ -274,6 +324,10 @@ async def validasi_ph(ph_min, ph_max, actual_ph):
             print(f"Perlu tambahan {basa_tambahan} mL basa")
             # GPIO.add_event_detect(sensor["WATERFLOW_ASAM_BASA"], GPIO.FALLING, callback=lambda channel: countPulse(
             # channel, vol_basa, actuator["RELAY_BASA"], sensor["WATERFLOW_ASAM_BASA"], 'basa'))
+            basa_tambahan = math.log10(1 / (10**-actual_ph)) / 0.1  # Belum final
+            print(f"Perlu tambahan {basa_tambahan} mL basa")
+            # GPIO.add_event_detect(sensor["WATERFLOW_ASAM_BASA"], GPIO.FALLING, callback=lambda channel: countPulse(
+            # channel, vol_basa, actuator["RELAY_BASA"], sensor["WATERFLOW_ASAM_BASA"], 'basa'))
         else:
             print("Tambahin asam")
             asam_tambahan = (
@@ -282,7 +336,6 @@ async def validasi_ph(ph_min, ph_max, actual_ph):
             print(f"Perlu tambahan {asam_tambahan} mL asam")
             # GPIO.add_event_detect(sensor["WATERFLOW_ASAM_BASA"], GPIO.FALLING, callback=lambda channel: countPulse(
             #     channel, vol_asam, actuator["RELAY_ASAM"], sensor["WATERFLOW_ASAM_BASA"], 'asam'))
-
 
 async def validasi_ppm(ppm_min, ppm_max, actual_ppm, konstanta, volume):
     print("Validasi PPM")
@@ -1013,7 +1066,6 @@ if __name__ == "__main__":
         sensor_adc = [pH_sensor.channel, EC_sensor.channel]
         sensor_non_adc = [
             temp_sensor.GPIO,
-            15,
             waterflow_air.GPIO,
             waterflow_a.GPIO,
             waterflow_b.GPIO,
@@ -1050,5 +1102,26 @@ if __name__ == "__main__":
     except Exception as e:
         print(e)
     finally:
+        loop.run_until_complete(
+            MQTT.publish(
+                "iterahero2023/peracikan/info",
+                json.dumps(
+                    {
+                        "status": "Berisi nutrisi",
+                        "volume": isi["tandon"],
+                        "microcontrollerName": NAME,
+                    }
+                ),
+                qos=1,
+            )
+        )
+
+        if check_peracikan():
+            loop.run_until_complete(stop_peracikan())
+        else:
+            print("Sistem Dihentikan")
+
+        turn_off_actuator()
+        loop.run_until_complete(publish_actuator(halt=True))
         GPIO.cleanup()
         sys.exit()
