@@ -778,7 +778,7 @@ async def readSensor():
     ESP_ser = serial.Serial(find_serial_port(), 115200)
     ESP_ser.reset_input_buffer()
 
-    lastPubTime = time.time()
+    # lastPubTime = time.time()
 
     while True:
         try:
@@ -792,11 +792,11 @@ async def readSensor():
                     pH_sensor.update(round(json_data["info"]["ph"], 2))
                     EC_sensor.update(round(json_data["info"]["ppm"], 3))
 
-            currentTime = time.time()
-            if currentTime - lastPubTime > 2:
-                await publish_sensor()
+            # currentTime = time.time()
+            # if currentTime - lastPubTime > 2:
+            await publish_sensor()
 
-                lastPubTime = time.time()
+                # lastPubTime = time.time()
                 
         except json.JSONDecodeError as e:
             print(f"Gagal memparsing json : {e}")
