@@ -721,23 +721,23 @@ async def publish_sensor():
         ppm_value = EC_sensor.nilai if EC_sensor.nilai > 0 else 0
         temp_value = temp_sensor.nilai if temp_sensor.nilai > 0 else 0
         now = datetime.datetime.now()
-        print(f"{now} -> Suhu: {temp_value}\tEC: {ppm_value}\tpH: {ph_value}")
+        print(f"{now}:\tSuhu: {temp_value}\tPPM: {ppm_value}\tpH: {ph_value}")
 
-        # debit_air = (
-        #     (debit["air"] / 378) / (time.time() - air_start)
-        #     if debit["air"] > 0
-        #     else 0
-        #     )
-        # debit_a = (
-        #     (debit["nutrisiA"] / 378) / (time.time() - a_start)
-        #     if debit["nutrisiA"] > 0
-        #     else 0
-        # )
-        # debit_b = (
-        #     (debit["nutrisiB"] / 378) / (time.time() - b_start)
-        #     if debit["nutrisiB"] > 0
-        #     else 0
-        # )
+        debit_air = (
+            (debit["air"] / 378) / (time.time() - air_start)
+            if debit["air"] > 0
+            else 0
+            )
+        debit_a = (
+            (debit["nutrisiA"] / 378) / (time.time() - a_start)
+            if debit["nutrisiA"] > 0
+            else 0
+        )
+        debit_b = (
+            (debit["nutrisiB"] / 378) / (time.time() - b_start)
+            if debit["nutrisiB"] > 0
+            else 0
+        )
 
         await MQTT.publish(
             "iterahero2023/info/sensor",
@@ -750,9 +750,9 @@ async def publish_sensor():
                     ],
                     "sensor_non_adc": [
                         {str(sensor_non_adc[0]): temp_value},
-                        # {str(sensor_non_adc[1]): round(debit_air, 3)},
-                        # {str(sensor_non_adc[2]): round(debit_a, 3)},
-                        # {str(sensor_non_adc[3]): round(debit_b, 3)},
+                        {str(sensor_non_adc[1]): round(debit_air, 3)},
+                        {str(sensor_non_adc[2]): round(debit_a, 3)},
+                        {str(sensor_non_adc[3]): round(debit_b, 3)},
                     ],
                 }
             ),

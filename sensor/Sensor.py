@@ -160,7 +160,6 @@ class SensorSuhu(Sensor):
                 count += 1
                 suhu = await self.read_temp()
                 # print(f"Suhu Larutan: {suhu}")
-                # print(f"Suhu Larutan: {suhu}")
                 total += suhu
                 if count == 1:
                     val_min = suhu
