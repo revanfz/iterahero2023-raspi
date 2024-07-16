@@ -285,6 +285,7 @@ async def validasi_ph(ph_min, ph_max, actual_ph):
 
 async def validasi_ppm(ppm_min, ppm_max, actual_ppm, konstanta, volume):
     print("Validasi PPM")
+    global air_update
     if ppm_min <= actual_ppm <= ppm_max:
         print("PPM Aman")
     else:
@@ -356,10 +357,28 @@ async def validasi_ppm(ppm_min, ppm_max, actual_ppm, konstanta, volume):
                 * volume
             )
             print(f"Air tambahan : {air_tambahan}")
+            GPIO.add_event_detect(
+                sensor["WATERFLOW_AIR"],
+                GPIO.FALLING,
+                callback=lambda channel: countPulseManual(
+                    channel,
+                    actuator["RELAY_AIR"],
+                    sensor["WATERFLOW_AIR"],
+                    "air",
+                ),
+            )
+            GPIO.output(actuator["RELAY_AIR"], GPIO.HIGH)
+            air_start = time.time()
+            air_update = air_start
+            while EC_sensor.nilai > ppm_max:
+                await asyncio.sleep(0.2)
+            GPIO.output(actuator["RELAY_AIR"], GPIO.LOW)
+            GPIO.remove_event_detect(sensor["WATERFLOW_AIR"])
+            debit.update("air", 0)
+            
             # GPIO.add_event_detect(sensor["WATERFLOW_AIR"], GPIO.FALLING, callback=lambda channel: countPulse(
             #     channel, air_tambahan, actuator["RELAY_AIR"], sensor["WATERFLOW_AIR"], 'air'))
-            # GPIO.output(actuator["RELAY_AIR"], GPIO.HIGH)
-            # print("Tambahin air")
+            
             # while not (peracikan_state['airEnough']):
             #     await asyncio.sleep(0.1)
 
@@ -504,16 +523,16 @@ async def peracikan(
 
             kontrol_peracikan()
 
-            ppm_value, ph_value, temp_value = await asyncio.gather(
-                EC_sensor.read_value(), pH_sensor.read_value(), temp_sensor.read_value()
-            )
+            # ppm_value, ph_value, temp_value = await asyncio.gather(
+            #     EC_sensor.read_value(), pH_sensor.read_value(), temp_sensor.read_value()
+            # )
             print(
-                f"\npH Larutan: {ph_value}\nPPM Larutan: {ppm_value}\nSuhu Larutan: {temp_value}\n"
+                f"\npH Larutan: {pH_sensor.nilai}\nPPM Larutan: {EC_sensor.nilai}\nSuhu Larutan: {temp_sensor.nilai}\n"
             )
 
             await asyncio.gather(
-                validasi_ppm(ppm_min, ppm_max, ppm_value, konstanta, volume),
-                validasi_ph(ph_min, ph_max, ph_value),
+                validasi_ppm(ppm_min, ppm_max, EC_sensor.nilai, konstanta, volume),
+                validasi_ph(ph_min, ph_max, pH_sensor.nilai),
             )
         else:
             await MQTT.publish(
@@ -730,10 +749,7 @@ async def readSensor():
         return None
 
     ESP_ser = serial.Serial(find_serial_port(), 115200)
-    ESP_ser.close()
-    await asyncio.sleep(2)
-    ESP_ser.open()
-    ESP_ser.flush()
+    ESP_ser.reset_input_buffer()
 
     lastPubTime = time.time()
 
