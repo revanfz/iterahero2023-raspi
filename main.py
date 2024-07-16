@@ -770,18 +770,20 @@ async def publish_sensor():
         print(e)
 
 
-async def readSensor():
-    global ESP_ser
-
-    def find_serial_port():
+async def find_serial_port():
+    while True:
         ports = serial.tools.list_ports.comports()
         for port, desc, hwid in sorted(ports):
             if "USB" in desc:
                 return port
+        print("ESP tidak terhubung ke Raspi")
+        await asyncio.sleep(1)
 
-        return None
 
-    ESP_ser = serial.Serial(find_serial_port(), 115200)
+async def readSensor():
+    global ESP_ser
+    port = await find_serial_port()
+    ESP_ser = serial.Serial(port, 115200)
     ESP_ser.reset_input_buffer()
 
     lastPubTime = time.time()
