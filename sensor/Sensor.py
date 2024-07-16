@@ -26,7 +26,6 @@ class Sensor:
     def update(self, nilai):
         self.nilai = nilai
 
-
 class SensorADC(Sensor):
     def __init__(self, name, persamaan, channel, tipe):
         super().__init__(name, persamaan)
@@ -82,9 +81,30 @@ class SensorWaterflow(Sensor):
         return f"Debit {self.name}: {total_debit / elapsed_time} L/s"
 
 
+class SensorWaterflow(Sensor):
+    def __init__(self, name, persamaan, gpio, pulse) -> None:
+        super().__init__(name, persamaan)
+        self.GPIO = gpio
+        self.pulse = pulse
+
+    def info(self):
+        super().info()
+
+    def read_debit(self, start_time, debit_cairan):
+        total_debit = debit_cairan / self.pulse
+        elapsed_time = time.time() - start_time
+        return f"Debit {self.name}: {total_debit / elapsed_time} L/s"
+
+
 class SensorSuhu(Sensor):
     def __init__(self, name, persamaan, gpio) -> None:
         super().__init__(name, persamaan)
+        self.path = ""
+        self.GPIO = gpio
+
+        os.system("modprobe w1-gpio")
+        os.system("modprobe w1-therm")
+        base_dir = "/sys/bus/w1/devices/"
         self.path = ""
         self.GPIO = gpio
 
@@ -98,7 +118,7 @@ class SensorSuhu(Sensor):
                 self.path = device_folder + "/w1_slave"
             except IndexError:
                 print(f"{self.name} tidak terhubung ke raspi")
-                time.sleep(3)
+                time.sleep(2)
 
     def info(self):
         super().info()
@@ -139,6 +159,7 @@ class SensorSuhu(Sensor):
             while count < self.timeout:
                 count += 1
                 suhu = await self.read_temp()
+                # print(f"Suhu Larutan: {suhu}")
                 # print(f"Suhu Larutan: {suhu}")
                 total += suhu
                 if count == 1:
