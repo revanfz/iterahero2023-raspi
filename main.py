@@ -799,7 +799,7 @@ async def readSensor():
                     EC_sensor.update(round(json_data["info"]["ppm"], 3))
 
             currentTime = time.time()
-            if currentTime - lastPubTime > 2:
+            if currentTime - lastPubTime >= 2:
                 await publish_sensor()
                 lastPubTime = time.time()
 
