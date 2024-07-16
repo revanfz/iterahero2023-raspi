@@ -7,10 +7,9 @@ import asyncio
 import time
 import aiomqtt
 import datetime
-
 import RPi.GPIO as GPIO
-import paho.mqtt.client as paho
 import serial.tools.list_ports
+import paho.mqtt.client as paho
 
 from aiomqtt import Will
 from sensor.Sensor import SensorADC, SensorSuhu, SensorWaterflow
@@ -93,9 +92,9 @@ def countPulse(channel, volume, relay_aktuator, pin_sensor, cairan):
         distribusi: apakah peracikan untuk distribusi
     """
     global distribusi_start, distribusi_update, air_start, air_update, a_start, a_update, b_start, b_update
-    
+
     actuator_state = GPIO.input(relay_aktuator)
-    if actuator_state: 
+    if actuator_state:
         debit[cairan] += 1
         sum_volume[cairan] = debit[cairan] / 378
         if sum_volume[cairan] >= volume:
@@ -112,6 +111,7 @@ def countPulse(channel, volume, relay_aktuator, pin_sensor, cairan):
             debit[cairan] = 0
         if debit[cairan] % 75 == 0:
             print(f"Volume {cairan} yang keluar: {sum_volume[cairan]}")
+
 
 def countPulseManual(channel, relay_aktuator, pin_sensor, cairan):
     """
@@ -137,6 +137,7 @@ def kontrol_peracikan(state=False, mix=False):
     GPIO.output(actuator["RELAY_B"], control)
     if mix:
         GPIO.output(actuator["MOTOR_MIXING"], control)
+
 
 def kontrol_peracikan(state=False, mix=False):
     """
@@ -265,7 +266,7 @@ async def test_waterflow(volume, cairan):
                 channel, volume, actuator["RELAY_B"], sensor["WATERFLOW_B"], cairan
             ),
         )
-        
+
         b_start = time.time()
         b_update = b_start
         GPIO.output(actuator["RELAY_B"], GPIO.HIGH)
@@ -301,6 +302,7 @@ async def validasi_ph(ph_min, ph_max, actual_ph):
             print(f"Perlu tambahan {asam_tambahan} mL asam")
             # GPIO.add_event_detect(sensor["WATERFLOW_ASAM_BASA"], GPIO.FALLING, callback=lambda channel: countPulse(
             #     channel, vol_asam, actuator["RELAY_ASAM"], sensor["WATERFLOW_ASAM_BASA"], 'asam'))
+
 
 async def validasi_ppm(ppm_min, ppm_max, actual_ppm, konstanta, volume):
     print("Validasi PPM")
@@ -363,7 +365,7 @@ async def validasi_ppm(ppm_min, ppm_max, actual_ppm, konstanta, volume):
             #     await asyncio.sleep(0.1)
         elif actual_ppm > ppm_max + 200:
             # Ngitung air yang mau ditambahin
-            
+
             # GPIO.add_event_detect(sensor["WATERFLOW_AIR"], GPIO.FALLING, callback=lambda channel: countPulse(
             #     channel, air_tambahan, actuator["RELAY_AIR"], sensor["WATERFLOW_AIR"], 'air'))
             # while not (peracikan_state['airEnough']):
@@ -604,6 +606,7 @@ async def count_distribusi_nutrisi():
         except Exception as e:
             print(e)
 
+
 async def volume_pompa_air():
     """
     Menghitung volume air yang mengisi tandon
@@ -619,6 +622,7 @@ async def volume_pompa_air():
 
         except Exception as e:
             print(e)
+
 
 async def volume_pompa_A():
     """
@@ -636,6 +640,7 @@ async def volume_pompa_A():
         except Exception as e:
             print(e)
 
+
 async def volume_pompa_B():
     """
     Menghitung volume nutrisi B yang mengisi tandon
@@ -651,6 +656,7 @@ async def volume_pompa_B():
 
         except Exception as e:
             print(e)
+
 
 def on_off_actuator(pin):
     global distribusi_start, distribusi_update, air_start, air_update, a_start, a_update, b_start, b_update
@@ -724,10 +730,8 @@ async def publish_sensor():
         print(f"{now}:\tSuhu: {temp_value}\tPPM: {ppm_value}\tpH: {ph_value}")
 
         debit_air = (
-            (debit["air"] / 378) / (time.time() - air_start)
-            if debit["air"] > 0
-            else 0
-            )
+            (debit["air"] / 378) / (time.time() - air_start) if debit["air"] > 0 else 0
+        )
         debit_a = (
             (debit["nutrisiA"] / 378) / (time.time() - a_start)
             if debit["nutrisiA"] > 0
@@ -765,8 +769,10 @@ async def publish_sensor():
     except Exception as e:
         print(e)
 
-async def readSensor():  
+
+async def readSensor():
     global ESP_ser
+
     def find_serial_port():
         ports = serial.tools.list_ports.comports()
         for port, desc, hwid in sorted(ports):
@@ -778,26 +784,25 @@ async def readSensor():
     ESP_ser = serial.Serial(find_serial_port(), 115200)
     ESP_ser.reset_input_buffer()
 
-    # lastPubTime = time.time()
+    lastPubTime = time.time()
 
     while True:
         try:
-            temp_value = await temp_sensor.read_value()
+            temp_value = await temp_sensor.read_temp()
             if ESP_ser.in_waiting > 0:
-                data = ESP_ser.readline().decode('utf-8').strip()
+                data = ESP_ser.readline().decode("utf-8").strip()
                 json_data = json.loads(data)
 
-                if 'info' in json_data:
+                if "info" in json_data:
                     temp_sensor.update(round(temp_value, 2))
                     pH_sensor.update(round(json_data["info"]["ph"], 2))
                     EC_sensor.update(round(json_data["info"]["ppm"], 3))
 
-            # currentTime = time.time()
-            # if currentTime - lastPubTime > 2:
-            await publish_sensor()
+            currentTime = time.time()
+            if currentTime - lastPubTime > 2:
+                await publish_sensor()
+                lastPubTime = time.time()
 
-                # lastPubTime = time.time()
-                
         except json.JSONDecodeError as e:
             print(f"Gagal memparsing json : {e}")
             continue
@@ -839,6 +844,9 @@ async def publish_actuator(halt=False):
             print(e)
 
     if halt:
+        data = []
+        for key, value in actuator.items():
+            data.append({value: GPIO.input(value)})
         await MQTT.publish(
             "iterahero2023/info/aktuator",
             json.dumps({"aktuator": data, "microcontrollerName": NAME}),
@@ -862,6 +870,7 @@ async def publish_status():
 
         except Exception as e:
             print(e)
+
 
 async def timerActuator(pin, duration):
     global distribusi_start, distribusi_update, air_start, air_update, a_start, a_update, b_start, b_update
@@ -898,9 +907,14 @@ async def main():
     #                          protocol=paho.MQTTv5,
     #                          tls_params=tls_params,
     #                          keepalive=1800)
-    will = Will("iterahero2023/mikrokontroller/status", json.dumps({"mikrokontroler": NAME, "status": 0}), qos=1, retain=True)
+    will = Will(
+        "iterahero2023/mikrokontroller/status",
+        json.dumps({"mikrokontroler": NAME, "status": 0}),
+        qos=1,
+        retain=True,
+    )
     MQTT = aiomqtt.Client(config["mqtt_broker_public"], 1883, will=will)
-    
+
     while True:
         try:
             async with MQTT:
@@ -909,7 +923,6 @@ async def main():
                     await asyncio.sleep(0.2)
                     await MQTT.subscribe("iterahero2023/#")
                     asyncio.gather(
-                        # publish_sensor(),
                         readSensor(),
                         publish_actuator(),
                         publish_status(),
@@ -918,10 +931,9 @@ async def main():
                         # volume_pompa_A(),
                         # volume_pompa_B(),
                     )
-                    
+
                     async for message in MQTT.messages:
                         data = json.loads(message.payload)
-                        # print(data)
                         if message.topic.matches("iterahero2023/automation"):
                             if data["microcontroller"] == NAME:
                                 if data["pin"] and "durasi" in data:
