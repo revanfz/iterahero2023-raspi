@@ -689,6 +689,7 @@ def on_off_actuator(pin):
             or not GPIO.input(actuator["SOLENOID_VALIDASI"])
         ):
             GPIO.input(actuator["SOLENOID_VALIDASI"], GPIO.HIGH)
+            GPIO.input(actuator["SOLENOID_DISTRIBUSI"], GPIO.HIGH)
         if pin == actuator["SOLENOID_DISTRIBUSI"] and GPIO.input(
             actuator["POMPA_NUTRISI"]
         ):
@@ -938,10 +939,17 @@ async def timerActuator(pin, duration):
             b_start = time.time()
             b_update = b_start
 
+        if pin == actuator["POMPA_NUTRISI"] and (not GPIO.input(actuator["SOLENOID_DISTRIBUSI"]) or not GPIO.input(actuator["SOLENOID_VALIDASI"])):
+            GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.HIGH)
+            GPIO.output(actuator["SOLENOID_DISTRIBUSI"], GPIO.HIGH)
+
         GPIO.output(pin, GPIO.HIGH)  # Nyala
         print("Nyala")
         await asyncio.sleep(duration * 60)
         GPIO.output(pin, GPIO.LOW)  # Mati
+        if pin == actuator["POMPA_NUTRISI"]:
+            GPIO.output(actuator["SOLENOID_DISTRIBUSI"], GPIO.LOW)
+            GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.LOW)
 
 
 async def main():
