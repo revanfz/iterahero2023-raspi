@@ -23,8 +23,8 @@ actuator = {
     "RELAY_AIR": 5,
     "RELAY_A": 17,
     "RELAY_B": 2,
-    "SOLENOID_VALIDASI": 20,  # Relay Asam
-    "SOLENOID_DISTRIBUSI": 22,  # Relay Basa
+    "SOLENOID_VALIDASI": 22,  # Relay Basa
+    "SOLENOID_DISTRIBUSI": 20,  # Relay Asam
     "POMPA_NUTRISI": 6,
     "MOTOR_MIXING": 16,
     "MOTOR_NUTRISI": 25,
@@ -306,23 +306,30 @@ async def validasi_ph(ph_min, ph_max, actual_ph):
 
 
 async def validasi_ppm(ppm_min, ppm_max, actual_ppm, konstanta, volume):
-    print(">>> Validasi PPM")
+    print(">>> Validasi PPM <<<")
     global air_start, air_update, a_start, a_update, b_start, b_update
     try:
+        status = False
+        memenuhi = False
         print("Pompa validasi dinyalakan")
         GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.HIGH)
         await asyncio.sleep(0.2)
         GPIO.output(actuator["POMPA_NUTRISI"], GPIO.HIGH)
-        await asyncio.sleep(15)
+        await asyncio.sleep(20)
         GPIO.output(actuator["POMPA_NUTRISI"], GPIO.LOW)
         await asyncio.sleep(0.2)
         GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.LOW)
+        await asyncio.sleep(60)
         validasi_start = time.time()
         if ppm_min <= actual_ppm <= ppm_max:
             print("PPM Aman <<<")
+            status = True
+            memenuhi = True
         else:
             print(f"Target ppm: {ppm_min} - {ppm_max} <<<")
-            print(f"Actual ppm: {actual_ppm} <<<")
+            print(f"Actual ppm: {EC_sensor.nilai} <<<")
+            actual_ppm = EC_sensor.nilai
+            validasi_start = time.time()
             if actual_ppm < ppm_min:
                 # nutrisi_tambahan_a = (
                 #     (
@@ -374,7 +381,7 @@ async def validasi_ppm(ppm_min, ppm_max, actual_ppm, konstanta, volume):
 
                 logging_time = time.time()
                 validasi_time = time.time()
-                validasi = False
+                pompa_on = False
 
                 while EC_sensor.nilai < ppm_min:
                     await asyncio.sleep(0.1)
@@ -384,26 +391,31 @@ async def validasi_ppm(ppm_min, ppm_max, actual_ppm, konstanta, volume):
                                 ppm_min, ppm_max, EC_sensor.nilai
                             )
                         )
-                    if time.time() - validasi_time >= 60 and not validasi:
+
+                    if time.time() - validasi_time >= 60 and not pompa_on:
                         GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.HIGH)
                         await asyncio.sleep(0.2)
                         GPIO.output(actuator["POMPA_NUTRISI"], GPIO.HIGH)
                         validasi_time = time.time()
-                        validasi = True
-                    if time.time() - validasi_time >= 10 and validasi or EC_sensor.nilai:
+                        pompa_on = True
+
+                    elif time.time() - validasi_time >= 10 and pompa_on:
                         GPIO.output(actuator["POMPA_NUTRISI"], GPIO.LOW)
                         await asyncio.sleep(0.2)
                         GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.LOW)
                         validasi_time = time.time()
-                        validasi = False
+                        pompa_on = False
                 
+                GPIO.output(actuator["POMPA_NUTRISI"], GPIO.LOW)
                 GPIO.output(actuator["RELAY_B"], GPIO.LOW)
                 GPIO.output(actuator["RELAY_A"], GPIO.LOW)
-                GPIO.output(actuator["POMPA_NUTRISI"], GPIO.LOW)
                 await asyncio.sleep(0.2)
                 GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.LOW)
                 GPIO.remove_event_detect(sensor["WATERFLOW_A"])
                 GPIO.remove_event_detect(sensor["WATERFLOW_B"])
+                debit.update("nutrisiA", 0)
+                debit.update("nutrisiB", 0)
+                status = True
 
             elif actual_ppm > ppm_max:
                 # Ngitung air yang mau ditambahin
@@ -437,6 +449,8 @@ async def validasi_ppm(ppm_min, ppm_max, actual_ppm, konstanta, volume):
                 air_start = time.time()
                 air_update = air_start
                 logging_time = time.time()
+                pompa_time = time.time()
+                pompa_on = False
                 while EC_sensor.nilai > ppm_max:
                     await asyncio.sleep(0.1)
                     if time.time() - logging_time >= 2.5:
@@ -446,27 +460,45 @@ async def validasi_ppm(ppm_min, ppm_max, actual_ppm, konstanta, volume):
                             )
                         )
 
+                    if time.time() - pompa_time >= 60 and not pompa_on:
+                        GPIO.input(actuator["SOLENOID_VALIDASI"], GPIO.HIGH)
+                        await asyncio.sleep(0.1)
+                        GPIO.input(actuator["POMPA_NUTRISI"], GPIO.HIGH)
+                        pompa_time = time.time()
+                        pompa_on = True
+
+                    elif time.time() - pompa_time >= 10 and pompa_on:
+                        GPIO.input(actuator["POMPA_NUTRISI"], GPIO.LOW)
+                        await asyncio.sleep(0.1)
+                        GPIO.input(actuator["SOLENOID_VALIDASI"], GPIO.LOW)
+                        pompa_time = time.time()
+                        pompa_on = False
+
+                GPIO.output(actuator["POMPA_NUTRISI"], GPIO.LOW)
                 GPIO.output(actuator["RELAY_AIR"], GPIO.LOW)
                 GPIO.remove_event_detect(sensor["WATERFLOW_AIR"])
-                GPIO.output(actuator["POMPA_NUTRISI"], GPIO.LOW)
-                debit.update("air", 0)
                 await asyncio.sleep(0.5)
                 GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.LOW)
+                debit.update("air", 0)
+                status = True
 
     except KeyboardInterrupt as e:
         print(f"Validasi dihentikan {e}")
         raise KeyboardInterrupt
     
     finally:
-        elapsed_time = time.time() - validasi_start
-        elapsed_min = int(elapsed_time // 60)
-        elapsed_hr = int(elapsed_min // 60)
-        elapsed_sec = round(elapsed_time % 60, 2)
-        print(
-            "PPM sudah disesuaikan\nTarget: {} - {}\tAktual: {}\nLama penyesuaian: {:02d}:{:02d}:{:.2f}s.".format(
-                ppm_min, ppm_max, EC_sensor.nilai, elapsed_hr, elapsed_min, elapsed_sec
+        if not memenuhi:
+            elapsed_time = time.time() - validasi_start
+            elapsed_min = int(elapsed_time // 60)
+            elapsed_hr = int(elapsed_min // 60)
+            elapsed_sec = round(elapsed_time % 60, 2)
+            print(
+                "PPM {} disesuaikan\nTarget: {} - {}\tAktual: {}\nLama penyesuaian: {:02d}:{:02d}:{:.2f}s.".format(
+                    'gagal' if not status else 'berhasil', ppm_min, ppm_max, EC_sensor.nilai, elapsed_hr, elapsed_min, elapsed_sec
+                )
             )
-        )
+        else:
+            print(">>> PPM sesuai, tidak perlu penyesuaian <<<")
 
 
 async def validasi_waterflow():
@@ -655,7 +687,7 @@ async def peracikan(
                     }
                 ),
             )
-            print(f"Peracikan gagal karena waterflow bermasalah")
+            print(f"Peracikan gagal karena {[key for key, value in sensor.items() if value in reason]} bermasalah")
 
     except (KeyboardInterrupt, asyncio.CancelledError) as e:
         print(f"{e}")
@@ -669,14 +701,14 @@ async def peracikan(
             json.dumps(
                 {
                     "status": f"Berisi pupuk {resep}",
-                    "volume": isi["tandon"],
+                    "volume": round(isi["tandon"], 2),
                     "microcontrollerName": NAME,
                 }
             ),
             qos=1,
         )
 
-        stop_peracikan()
+        await stop_peracikan()
         turn_off_actuator()
         elapsed_time = time.time() - peracikan_start
         elapsed_min = int(elapsed_time // 60)
@@ -762,16 +794,11 @@ def on_off_actuator(pin):
     state = GPIO.input(pin)
     if not state:
         if pin == actuator["POMPA_NUTRISI"] and (
-            not GPIO.input(actuator["SOLENOID_DISTRIBUSI"])
-            or not GPIO.input(actuator["SOLENOID_VALIDASI"])
+            (not GPIO.input(actuator["SOLENOID_DISTRIBUSI"]))
+            or (not GPIO.input(actuator["SOLENOID_VALIDASI"]))
         ):
-            GPIO.input(actuator["SOLENOID_VALIDASI"], GPIO.HIGH)
-            GPIO.input(actuator["SOLENOID_DISTRIBUSI"], GPIO.HIGH)
-        if pin == actuator["SOLENOID_DISTRIBUSI"] and GPIO.input(
-            actuator["POMPA_NUTRISI"]
-        ):
-            distribusi_start = time.time()
-            distribusi_update = distribusi_start
+            GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.HIGH)
+            # GPIO.output(actuator["SOLENOID_DISTRIBUSI"], GPIO.HIGH)
         elif pin == actuator["RELAY_AIR"]:
             GPIO.add_event_detect(
                 sensor["WATERFLOW_AIR"],
@@ -837,7 +864,13 @@ def on_off_actuator(pin):
                 GPIO.output(actuator["POMPA_NUTRISI"], GPIO.LOW)
 
     GPIO.output(pin, not (state))
-    if pin == actuator["POMPA_NUTRISI"] and not (state):
+    if pin == actuator["SOLENOID_DISTRIBUSI"] and not state:
+        GPIO.output(actuator["POMPA_NUTRISI"], GPIO.HIGH)
+        distribusi_start = time.time()
+        distribusi_update = distribusi_start
+    if pin == actuator["SOLENOID_VALIDASI"] and not state:
+        GPIO.output(actuator["POMPA_NUTRISI"], GPIO.HIGH)
+    if pin == actuator["POMPA_NUTRISI"] and state:
         GPIO.output(actuator["SOLENOID_DISTRIBUSI"], GPIO.LOW)
         GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.LOW)
 
@@ -1129,9 +1162,9 @@ async def main():
                                         ph_max,
                                         ppm_min,
                                         ppm_max,
+                                        air,
                                         nutrisiA,
                                         nutrisiB,
-                                        air,
                                         konstanta,
                                         volume,
                                         resep,
@@ -1226,6 +1259,7 @@ if __name__ == "__main__":
 
     except Exception as e:
         print(e)
+
     finally:
         loop.run_until_complete(
             MQTT.publish(
