@@ -307,94 +307,176 @@ async def validasi_ph(ph_min, ph_max, actual_ph):
 
 async def validasi_ppm(ppm_min, ppm_max, actual_ppm, konstanta, volume):
     print(">>> Validasi PPM")
-    global air_update
-    if ppm_min <= actual_ppm <= ppm_max:
-        print("PPM Aman <<<")
-    else:
-        print(f"Target ppm: {ppm_min} - {ppm_max} <<<")
-        print(f"Actual ppm: {actual_ppm} <<<")
-        if actual_ppm < ppm_min:
-            nutrisi_tambahan_a = (
-                (
-                    (((ppm_min + ppm_max) / 2) * konstanta["rasioA"] / konstanta["ppm"])
-                    - (actual_ppm * konstanta["rasioA"] / konstanta["ppm"])
-                )
-                / 1000
-                * volume
-            )
-            nutrisi_tambahan_b = (
-                (
-                    (((ppm_min + ppm_max) / 2) * konstanta["rasioB"] / konstanta["ppm"])
-                    - (actual_ppm * konstanta["rasioB"] / konstanta["ppm"])
-                )
-                / 1000
-                * volume
-            )
+    global air_start, air_update, a_start, a_update, b_start, b_update
+    try:
+        print("Pompa validasi dinyalakan")
+        GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.HIGH)
+        await asyncio.sleep(0.2)
+        GPIO.output(actuator["POMPA_NUTRISI"], GPIO.HIGH)
+        await asyncio.sleep(15)
+        GPIO.output(actuator["POMPA_NUTRISI"], GPIO.LOW)
+        await asyncio.sleep(0.2)
+        GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.LOW)
+        validasi_start = time.time()
+        if ppm_min <= actual_ppm <= ppm_max:
+            print("PPM Aman <<<")
+        else:
+            print(f"Target ppm: {ppm_min} - {ppm_max} <<<")
+            print(f"Actual ppm: {actual_ppm} <<<")
+            if actual_ppm < ppm_min:
+                # nutrisi_tambahan_a = (
+                #     (
+                #         (((ppm_min + ppm_max) / 2) * konstanta["rasioA"] / konstanta["ppm"])
+                #         - (actual_ppm * konstanta["rasioA"] / konstanta["ppm"])
+                #     )
+                #     / 1000
+                #     * volume
+                # )
+                # nutrisi_tambahan_b = (
+                #     (
+                #         (((ppm_min + ppm_max) / 2) * konstanta["rasioB"] / konstanta["ppm"])
+                #         - (actual_ppm * konstanta["rasioB"] / konstanta["ppm"])
+                #     )
+                #     / 1000
+                #     * volume
+                # )
+                # print(">>> Perhitungan Lama")
+                # print(f"Nutrisi A add: {nutrisi_tambahan_a}")
+                # print(f"Nutrisi B add: {nutrisi_tambahan_b} <<<")
 
-            print(f"Nutrisi A add: {nutrisi_tambahan_a}")
-            print(f"Nutrisi B add: {nutrisi_tambahan_b}")
-        elif actual_ppm > ppm_max:
-            # Ngitung air yang mau ditambahin
-            # GPIO.add_event_detect(sensor["WATERFLOW_AIR"], GPIO.FALLING, callback=lambda channel: countPulse(
-            #     channel, air_tambahan, actuator["RELAY_AIR"], sensor["WATERFLOW_AIR"], 'air'))
-            # air_tambahan = (
-            #     (
-            #         (actual_ppm * konstanta["rasioAir"] / konstanta["ppm"])
-            #         - (
-            #             ((ppm_min + ppm_max) / 2)
-            #             * konstanta["rasioAir"]
-            #             / konstanta["ppm"]
-            #         )
-            #     )
-            #     / 1000
-            #     * volume
-            # )
-            # print(f"Air tambahan : {air_tambahan}")
-            print("PPM berlebih, penambahan air dilakukan sampai PPM memenuhi")
-            GPIO.add_event_detect(
-                sensor["WATERFLOW_AIR"],
-                GPIO.FALLING,
-                callback=lambda channel: countPulseManual(
-                    channel,
-                    actuator["RELAY_AIR"],
-                    sensor["WATERFLOW_AIR"],
-                    "air",
-                ),
-            )
-            GPIO.output(actuator["RELAY_AIR"], GPIO.HIGH)
-            air_start = time.time()
-            air_update = air_start
-            logging_time = time.time()
-            while EC_sensor.nilai > ppm_max:
-                await asyncio.sleep(0.1)
-                if time.time() - logging_time >= 2.5:
-                    print(
-                        "Menyesuaikan ppm yang melebihi ppm maks (menambah air)\nPPM target {} - {}; actual {}".format(
-                            ppm_min, ppm_max, EC_sensor.nilai
+                print("PPM berlebih, penambahan air dilakukan sampai PPM memenuhi")
+                GPIO.add_event_detect(
+                    sensor["WATERFLOW_A"],
+                    GPIO.FALLING,
+                    callback=lambda channel: countPulseManual(
+                        channel,
+                        actuator["RELAY_A"],
+                        sensor["WATERFLOW_A"],
+                        "nutrisiA",
+                    ),
+                )
+                GPIO.add_event_detect(
+                    sensor["WATERFLOW_B"],
+                    GPIO.FALLING,
+                    callback=lambda channel: countPulseManual(
+                        channel,
+                        actuator["RELAY_B"],
+                        sensor["WATERFLOW_B"],
+                        "nutrisiB",
+                    ),
+                )
+                GPIO.output(actuator["RELAY_A"], GPIO.HIGH),
+                GPIO.output(actuator["RELAY_B"], GPIO.HIGH)
+                a_start = time.time()
+                a_update = a_start
+                b_start = time.time()
+                b_update = b_start
+
+                logging_time = time.time()
+                validasi_time = time.time()
+                validasi = False
+
+                while EC_sensor.nilai < ppm_min:
+                    await asyncio.sleep(0.1)
+                    if time.time() - logging_time >= 2.5:
+                        print(
+                            "Menyesuaikan ppm yang melebihi ppm maks (menambah air)\nPPM target {} - {}; actual {}".format(
+                                ppm_min, ppm_max, EC_sensor.nilai
+                            )
                         )
-                    )
+                    if time.time() - validasi_time >= 60 and not validasi:
+                        GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.HIGH)
+                        await asyncio.sleep(0.2)
+                        GPIO.output(actuator["POMPA_NUTRISI"], GPIO.HIGH)
+                        validasi_time = time.time()
+                        validasi = True
+                    if time.time() - validasi_time >= 10 and validasi or EC_sensor.nilai:
+                        GPIO.output(actuator["POMPA_NUTRISI"], GPIO.LOW)
+                        await asyncio.sleep(0.2)
+                        GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.LOW)
+                        validasi_time = time.time()
+                        validasi = False
+                
+                GPIO.output(actuator["RELAY_B"], GPIO.LOW)
+                GPIO.output(actuator["RELAY_A"], GPIO.LOW)
+                GPIO.output(actuator["POMPA_NUTRISI"], GPIO.LOW)
+                await asyncio.sleep(0.2)
+                GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.LOW)
+                GPIO.remove_event_detect(sensor["WATERFLOW_A"])
+                GPIO.remove_event_detect(sensor["WATERFLOW_B"])
 
-            GPIO.output(actuator["RELAY_AIR"], GPIO.LOW)
-            GPIO.remove_event_detect(sensor["WATERFLOW_AIR"])
-            print(
-                "PPM sudah disesuaikan\nTarget: {} - {}\tAktual: {}".format(
-                    ppm_min, ppm_max, EC_sensor.nilai
+            elif actual_ppm > ppm_max:
+                # Ngitung air yang mau ditambahin
+                # GPIO.add_event_detect(sensor["WATERFLOW_AIR"], GPIO.FALLING, callback=lambda channel: countPulse(
+                #     channel, air_tambahan, actuator["RELAY_AIR"], sensor["WATERFLOW_AIR"], 'air'))
+                # air_tambahan = (
+                #     (
+                #         (actual_ppm * konstanta["rasioAir"] / konstanta["ppm"])
+                #         - (
+                #             ((ppm_min + ppm_max) / 2)
+                #             * konstanta["rasioAir"]
+                #             / konstanta["ppm"]
+                #         )
+                #     )
+                #     / 1000
+                #     * volume
+                # )
+                # print(f"Air tambahan : {air_tambahan}")
+                print("PPM berlebih, penambahan air dilakukan sampai PPM memenuhi")
+                GPIO.add_event_detect(
+                    sensor["WATERFLOW_AIR"],
+                    GPIO.FALLING,
+                    callback=lambda channel: countPulseManual(
+                        channel,
+                        actuator["RELAY_AIR"],
+                        sensor["WATERFLOW_AIR"],
+                        "air",
+                    ),
                 )
+                GPIO.output(actuator["RELAY_AIR"], GPIO.HIGH)
+                air_start = time.time()
+                air_update = air_start
+                logging_time = time.time()
+                while EC_sensor.nilai > ppm_max:
+                    await asyncio.sleep(0.1)
+                    if time.time() - logging_time >= 2.5:
+                        print(
+                            "Menyesuaikan ppm yang melebihi ppm maks (menambah air)\nPPM target {} - {}; actual {}".format(
+                                ppm_min, ppm_max, EC_sensor.nilai
+                            )
+                        )
+
+                GPIO.output(actuator["RELAY_AIR"], GPIO.LOW)
+                GPIO.remove_event_detect(sensor["WATERFLOW_AIR"])
+                GPIO.output(actuator["POMPA_NUTRISI"], GPIO.LOW)
+                debit.update("air", 0)
+                await asyncio.sleep(0.5)
+                GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.LOW)
+
+    except KeyboardInterrupt as e:
+        print(f"Validasi dihentikan {e}")
+        raise KeyboardInterrupt
+    
+    finally:
+        elapsed_time = time.time() - validasi_start
+        elapsed_min = int(elapsed_time // 60)
+        elapsed_hr = int(elapsed_min // 60)
+        elapsed_sec = round(elapsed_time % 60, 2)
+        print(
+            "PPM sudah disesuaikan\nTarget: {} - {}\tAktual: {}\nLama penyesuaian: {:02d}:{:02d}:{:.2f}s.".format(
+                ppm_min, ppm_max, EC_sensor.nilai, elapsed_hr, elapsed_min, elapsed_sec
             )
-            GPIO.output(actuator["POMPA_NUTRISI"], GPIO.LOW)
-            debit.update("air", 0)
-            await asyncio.sleep(0.5)
-            GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.LOW)
+        )
 
 
 async def validasi_waterflow():
     reason = []
     await asyncio.sleep(5)
-    if debit["air"] < 100:
+    if debit["air"] < 100 and not peracikan_state["airEnough"]:
         reason.append(sensor["WATERFLOW_AIR"])
-    if debit["nutrisiA"] < 100:
+    if debit["nutrisiA"] < 100 and not peracikan_state["nutrisiAEnough"]:
         reason.append(sensor["WATERFLOW_A"])
-    if debit["nutrisiB"] < 100:
+    if debit["nutrisiB"] < 100 and not peracikan_state["nutrisiBEnough"]:
         reason.append(sensor["WATERFLOW_B"])
 
     valid = not bool(len(reason))
@@ -486,8 +568,6 @@ async def peracikan(
 
         valid, reason = await validasi_waterflow()
         if valid:
-            # GPIO.output(actuator["MOTOR_MIXING"], GPIO.HIGH)
-
             relay_state = [
                 {
                     str(actuator["MOTOR_MIXING"]): bool(
@@ -521,7 +601,7 @@ async def peracikan(
             )
 
             logging_time = time.time()
-            validasi = False
+            # validasi = False
             mengaduk = False
             while (
                 not (peracikan_state["airEnough"])
@@ -531,18 +611,18 @@ async def peracikan(
                 if sum(sum_volume.values()) >= 0.50 * volume and not mengaduk:
                     GPIO.output(actuator["MOTOR_MIXING"], GPIO.HIGH)
                     mengaduk = True
-                if sum(sum_volume.values()) >= 0.75 * volume and not validasi:
-                    GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.HIGH)
-                    validasi = True
-                    await asyncio.sleep(1)
-                    GPIO.output(actuator["POMPA_NUTRISI"], GPIO.HIGH)
-                if (time.time() - logging_time) >= 4:
+                # if sum(sum_volume.values()) >= 0.75 * volume and not validasi:
+                #     GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.HIGH)
+                #     validasi = True
+                #     await asyncio.sleep(1)
+                #     GPIO.output(actuator["POMPA_NUTRISI"], GPIO.HIGH)
+                if (time.time() - logging_time) >= 3:
                     await MQTT.publish(
                         "iterahero2023/peracikan/info",
                         json.dumps(
                             {
                                 "status": f"Meracik {resep}",
-                                "volume": isi["tandon"] + sum(sum_volume.values()),
+                                "volume": round(isi["tandon"] + sum(sum_volume.values()), 2),
                                 "microcontrollerName": NAME,
                             }
                         ),
@@ -558,9 +638,6 @@ async def peracikan(
             # ppm_value, ph_value, temp_value = await asyncio.gather(
             #     EC_sensor.read_value(), pH_sensor.read_value(), temp_sensor.read_value()
             # )
-            print(
-                f"\npH Larutan: {pH_sensor.nilai}\nPPM Larutan: {EC_sensor.nilai}\nSuhu Larutan: {temp_sensor.nilai}\n"
-            )
 
             await asyncio.gather(
                 validasi_ppm(ppm_min, ppm_max, EC_sensor.nilai, konstanta, volume),
@@ -773,7 +850,7 @@ async def publish_sensor():
         ppm_value = EC_sensor.nilai if EC_sensor.nilai > 0 else 0
         temp_value = temp_sensor.nilai if temp_sensor.nilai > 0 else 0
         now = datetime.datetime.now()
-        print(f"{now}:\tSuhu: {temp_value}\tPPM: {ppm_value}\tpH: {ph_value}")
+        print(f"{now}:\tSuhu Larutan: {temp_value}\tPPM Larutan: {ppm_value}\tpH Larutan: {ph_value}")
 
         debit_air = (
             (debit["air"] / 378) / (time.time() - air_start) if debit["air"] > 0 else 0
