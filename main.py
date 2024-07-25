@@ -316,7 +316,7 @@ async def validasi_ppm(ppm_min, ppm_max, actual_ppm, konstanta, volume):
         GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.HIGH)
         await asyncio.sleep(0.2)
         GPIO.output(actuator["POMPA_NUTRISI"], GPIO.HIGH)
-        await asyncio.sleep(20)
+        await asyncio.sleep(30)
         GPIO.output(actuator["POMPA_NUTRISI"], GPIO.LOW)
         await asyncio.sleep(0.2)
         GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.LOW)
