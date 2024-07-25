@@ -203,10 +203,29 @@ async def stop_peracikan():
     )
 
     relay_state = [
-        {str(actuator["MOTOR_MIXING"]): bool(GPIO.input(actuator["MOTOR_MIXING"]))},
+        {
+            str(actuator["MOTOR_MIXING"]): bool(
+                GPIO.input(actuator["MOTOR_MIXING"])
+            )
+        },
         {str(actuator["RELAY_AIR"]): bool(GPIO.input(actuator["RELAY_AIR"]))},
         {str(actuator["RELAY_A"]): bool(GPIO.input(actuator["RELAY_A"]))},
         {str(actuator["RELAY_B"]): bool(GPIO.input(actuator["RELAY_B"]))},
+        {
+            str(actuator["SOLENOID_DISTRIBUSI"]): bool(
+                GPIO.input(actuator["SOLENOID_DISTRIBUSI"])
+            )
+        },
+        {
+            str(actuator["SOLENOID_VALIDASI"]): bool(
+                GPIO.input(actuator["SOLENOID_VALIDASI"])
+            )
+        },
+        {
+            str(actuator["POMPA_NUTRISI"]): bool(
+                GPIO.input(actuator["POMPA_NUTRISI"])
+            )
+        },
     ]
 
     await asyncio.gather(
@@ -320,7 +339,7 @@ async def validasi_ppm(ppm_min, ppm_max, actual_ppm, konstanta, volume):
         GPIO.output(actuator["POMPA_NUTRISI"], GPIO.LOW)
         await asyncio.sleep(0.2)
         GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.LOW)
-        await asyncio.sleep(60)
+        await asyncio.sleep(30)
         validasi_start = time.time()
         if ppm_min <= actual_ppm <= ppm_max:
             print("PPM Aman <<<")
@@ -404,7 +423,7 @@ async def validasi_ppm(ppm_min, ppm_max, actual_ppm, konstanta, volume):
                             )
                         )
 
-                    if time.time() - validasi_time >= 60 and not pompa_on:
+                    if time.time() - validasi_time >= 30 and not pompa_on:
                         GPIO.output(actuator["SOLENOID_VALIDASI"], GPIO.HIGH)
                         await asyncio.sleep(0.2)
                         GPIO.output(actuator["POMPA_NUTRISI"], GPIO.HIGH)
@@ -486,7 +505,7 @@ async def validasi_ppm(ppm_min, ppm_max, actual_ppm, konstanta, volume):
                             )
                         )
 
-                    if time.time() - pompa_time >= 60 and not pompa_on:
+                    if time.time() - pompa_time >= 30 and not pompa_on:
                         GPIO.input(actuator["SOLENOID_VALIDASI"], GPIO.HIGH)
                         await asyncio.sleep(0.1)
                         GPIO.input(actuator["POMPA_NUTRISI"], GPIO.HIGH)
