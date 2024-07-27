@@ -91,7 +91,27 @@ def countPulse(channel, volume, relay_aktuator, pin_sensor, cairan):
         distribusi: apakah peracikan untuk distribusi
     """
     global distribusi_start, distribusi_update, air_start, air_update, a_start, a_update, b_start, b_update
-
+    if cairan == "air":
+        if volume <= 100:
+            volume *= 0.4385
+        elif volume <= 200:
+            volume *= 0.6060
+        elif volume <= 300:
+            volume *= 0.6578
+        elif volume <= 400:
+            volume *= 0.7194
+        elif volume <= 500:
+            volume *= 0.8333
+        elif volume <= 600:
+            volume *= 0.7772
+        elif volume <= 700:
+            volume *= 0.7777
+        elif volume <= 800:
+            volume *= 0.8333
+        elif volume <= 900:
+            volume *= 0.8571
+        elif volume <= 1000:
+            volume *= 0.9090
     actuator_state = GPIO.input(relay_aktuator)
     if actuator_state:
         debit[cairan] += 1
