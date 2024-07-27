@@ -1130,7 +1130,7 @@ async def main():
                                 volume = komposisi["volume"]
                                 ph_min = komposisi["ph_min"]
                                 ph_max = komposisi["ph_max"]
-                                ppm_min = komposisi["ppm_min"]
+                                ppm_min = komposisi["ppm_min"]  
                                 ppm_max = komposisi["ppm_max"]
                                 resep = komposisi["nama"]
                                 konstanta = data["konstanta"]
