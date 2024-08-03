@@ -20,23 +20,23 @@ with open(os.path.dirname(__file__) + "/config.json") as config_file:
 
 # DEKLARASI PIN  DAN VARIABEL #
 actuator = {
-    "RELAY_AIR": 5,
-    "RELAY_A": 17,
-    "RELAY_B": 2,
-    "SOLENOID_VALIDASI": 22,  # Relay Basa
+    "MOTOR_NUTRISI": 26,
+    "MOTOR_MIXING": 13,
+    "RELAY_AIR": 6,
+    "RELAY_A": 5,
+    "RELAY_B": 22,
+    "POMPA_NUTRISI": 17,
+    "SOLENOID_VALIDASI": 2,  # Relay Basa
     "SOLENOID_DISTRIBUSI": 20,  # Relay Asam
-    "POMPA_NUTRISI": 6,
-    "MOTOR_MIXING": 16,
-    "MOTOR_NUTRISI": 25,
 }
 
 isi = {"tandon": 0}
 
 sensor = {
-    "WATERFLOW_A": 13,
-    "WATERFLOW_B": 26,
+    "WATERFLOW_A": 23,
+    "WATERFLOW_B": 24,
     "WATERFLOW_ASAM_BASA": 18,
-    "WATERFLOW_AIR": 24,
+    "WATERFLOW_AIR": 25,
 }
 
 debit = {"air": 0, "asam": 0, "basa": 0, "distribusi": 0, "nutrisiA": 0, "nutrisiB": 0}
@@ -91,27 +91,7 @@ def countPulse(channel, volume, relay_aktuator, pin_sensor, cairan):
         distribusi: apakah peracikan untuk distribusi
     """
     global distribusi_start, distribusi_update, air_start, air_update, a_start, a_update, b_start, b_update
-    if cairan == "air":
-        if volume <= 100:
-            volume *= 0.4385
-        elif volume <= 200:
-            volume *= 0.6060
-        elif volume <= 300:
-            volume *= 0.6578
-        elif volume <= 400:
-            volume *= 0.7194
-        elif volume <= 500:
-            volume *= 0.8333
-        elif volume <= 600:
-            volume *= 0.7772
-        elif volume <= 700:
-            volume *= 0.7777
-        elif volume <= 800:
-            volume *= 0.8333
-        elif volume <= 900:
-            volume *= 0.8571
-        elif volume <= 1000:
-            volume *= 0.9090
+    
     actuator_state = GPIO.input(relay_aktuator)
     if actuator_state:
         debit[cairan] += 1
