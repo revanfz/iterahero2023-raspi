@@ -1,5 +1,6 @@
 import os
 import math
+import random
 import ssl
 import sys
 import json
@@ -933,7 +934,9 @@ async def publish_sensor():
     try:
         ph_value = pH_sensor.nilai if pH_sensor.nilai > 0 else 0
         ppm_value = EC_sensor.nilai if EC_sensor.nilai > 0 else 0
-        temp_value = temp_sensor.nilai if temp_sensor.nilai > 0 else 0
+        # temp_value = temp_sensor.nilai if temp_sensor.nilai > 0 else 0
+        temp_value = round(random.uniform(29, 31), 2)
+        temp_value = 28
         now = datetime.datetime.now()
         print(f"{now}:\tSuhu Larutan: {temp_value}\tPPM Larutan: {ppm_value}\tpH Larutan: {ph_value}")
 
@@ -998,13 +1001,13 @@ async def readSensor():
 
     while True:
         try:
-            temp_value = await temp_sensor.read_temp()
+            # temp_value = await temp_sensor.read_temp()
             if ESP_ser.in_waiting > 0:
                 data = ESP_ser.readline().decode("utf-8").strip()
                 json_data = json.loads(data)
 
                 if "info" in json_data:
-                    temp_sensor.update(round(temp_value, 2))
+                    # temp_sensor.update(round(temp_value, 2))
                     pH_sensor.update(round(json_data["info"]["ph"], 2))
                     EC_sensor.update(round(json_data["info"]["ppm"], 3))
 
@@ -1253,7 +1256,7 @@ if __name__ == "__main__":
         EC_sensor = SensorADC(
             "Sensor EC DF Robot", "y = (0.043x + 13.663) - 60", 1, "ec"
         )
-        temp_sensor = SensorSuhu("Sensor Suhu DS18B20", "y = x - 1.63", 15)
+        # temp_sensor = SensorSuhu("Sensor Suhu DS18B20", "y = x - 1.63", 15)
         waterflow_air = SensorWaterflow(
             name="Waterflow Air",
             persamaan="y = (x / 378) - (time_now - time_start)",
@@ -1275,7 +1278,7 @@ if __name__ == "__main__":
 
         sensor_adc = [pH_sensor.channel, EC_sensor.channel]
         sensor_non_adc = [
-            temp_sensor.GPIO,
+            # temp_sensor.GPIO,
             waterflow_air.GPIO,
             waterflow_a.GPIO,
             waterflow_b.GPIO,
