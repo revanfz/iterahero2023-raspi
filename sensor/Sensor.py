@@ -102,23 +102,22 @@ class SensorSuhu(Sensor):
         self.path = ""
         self.GPIO = gpio
 
-        os.system("modprobe w1-gpio")
-        os.system("modprobe w1-therm")
-        base_dir = "/sys/bus/w1/devices/"
-        self.path = ""
-        self.GPIO = gpio
+        # os.system("modprobe w1-gpio")
+        # os.system("modprobe w1-therm")
+        # base_dir = "/sys/bus/w1/devices/"
+        # self.path = ""
 
-        os.system("modprobe w1-gpio")
-        os.system("modprobe w1-therm")
-        base_dir = "/sys/bus/w1/devices/"
+        # os.system("modprobe w1-gpio")
+        # os.system("modprobe w1-therm")
+        # base_dir = "/sys/bus/w1/devices/"
 
-        while self.path == "":
-            try:
-                device_folder = glob.glob(base_dir + "28*")[0]
-                self.path = device_folder + "/w1_slave"
-            except IndexError:
-                print(f"{self.name} tidak terhubung ke raspi")
-                time.sleep(2)
+        # while self.path == "":
+        #     try:
+        #         device_folder = glob.glob(base_dir + "28*")[0]
+        #         self.path = device_folder + "/w1_slave"
+        #     except IndexError:
+        #         print(f"{self.name} tidak terhubung ke raspi")
+        #         time.sleep(2)
 
     def info(self):
         super().info()
