@@ -935,11 +935,6 @@ async def publish_sensor():
         ph_value = pH_sensor.nilai if pH_sensor.nilai > 0 else 0
         ppm_value = EC_sensor.nilai if EC_sensor.nilai > 0 else 0
         temp_value = temp_sensor.nilai if temp_sensor.nilai > 0 else 0
-<<<<<<< HEAD
-=======
-        temp_value = round(random.uniform(29, 31), 2)
-        temp_value = 28
->>>>>>> 0183621bd260c48d939a0e796e5b34cde9ccb2a2
         now = datetime.datetime.now()
         print(f"{now}:\tSuhu Larutan: {temp_value}\tPPM Larutan: {ppm_value}\tpH Larutan: {ph_value}")
 
@@ -1004,20 +999,12 @@ async def readSensor():
 
     while True:
         try:
-<<<<<<< HEAD
-            temp_value = await temp_sensor.read_temp()
-=======
->>>>>>> 0183621bd260c48d939a0e796e5b34cde9ccb2a2
             if ESP_ser.in_waiting > 0:
                 data = ESP_ser.readline().decode("utf-8").strip()
                 json_data = json.loads(data)
 
                 if "info" in json_data:
-<<<<<<< HEAD
-                    temp_sensor.update(round(temp_value, 2))
-=======
-                    temp_sensor.update(round(json_data["info"]["temperature"]))
->>>>>>> 0183621bd260c48d939a0e796e5b34cde9ccb2a2
+                    temp_sensor.update(round(json_data["info"]["temperature"], 2))
                     pH_sensor.update(round(json_data["info"]["ph"], 2))
                     EC_sensor.update(round(json_data["info"]["ppm"], 3))
 
